@@ -13,6 +13,7 @@ namespace ExpertCar.App;
 
 public partial class MainWindow : Window
 {
+    private const string MvdisUrl = "https://mvdvan.mvdis.gov.tw/mvdvan/mvdvan";
     private readonly IStorageService _storage = new ImportStorageService(AppDataPath.DatabasePath());
     private readonly WorkspaceViewModel _viewModel;
     private readonly ObservableCollection<ReminderDisplay> _reminders = [];
@@ -188,7 +189,7 @@ public partial class MainWindow : Window
     });
     private void OpenMvdis_Click(object sender, RoutedEventArgs e)
     {
-        try { Process.Start(new ProcessStartInfo("https://www.mvdis.gov.tw/") { UseShellExecute = true }); }
+        try { Process.Start(new ProcessStartInfo(MvdisUrl) { UseShellExecute = true }); }
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "無法開啟瀏覽器", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
 

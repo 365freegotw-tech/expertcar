@@ -1,6 +1,6 @@
 # Third-party notices
 
-本檔記錄目前直接依賴與可能另行安裝的 MDBTools。ExpertCar v0.1.0 Release 不附 MDBTools 執行檔或函式庫，因此該 Release 不需要附 MDBTools 原始碼。若後續發行包附上 MDBTools，須同時提供相符的完整原始碼、授權文字與必要建置資訊；其 GPL／LGPL 條款不受 ExpertCar 的 MIT 授權取代。
+本檔記錄目前直接依賴與可能另行安裝的 MDBTools。ExpertCar v0.1.1 Release 不附 MDBTools 執行檔或函式庫，因此該 Release 不需要附 MDBTools 原始碼。若後續發行包附上 MDBTools，須同時提供相符的完整原始碼、授權文字與必要建置資訊；其 GPL／LGPL 條款不受 ExpertCar 的 MIT 授權取代。
 
 | 元件 | 版本／範圍 | 授權與來源 |
 | --- | --- | --- |

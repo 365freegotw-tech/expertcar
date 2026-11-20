@@ -1,6 +1,6 @@
 # 汽修賺錢專家（ExpertCar）
 
-[汽修賺錢專家官方網站](https://keelungit.com/expertcar/)提供產品說明與 Windows 下載。ExpertCar 是汽修廠單機使用的免費開源管理軟體，目前版本為 0.1.0。
+[汽修賺錢專家官方網站](https://keelungit.com/expertcar/)提供產品說明與 Windows 下載。ExpertCar 是汽修廠單機使用的免費開源管理軟體，目前版本為 0.1.1。
 
 ## 目前功能
 
@@ -10,7 +10,7 @@
 
 ## Windows 下載與執行
 
-從[官方下載頁](https://keelungit.com/expertcar/#download)下載 `ExpertCar-0.1-win-x64.zip`，解壓縮整個資料夾後執行 `ExpertCar.App.exe`。ZIP 已包含 .NET 執行環境，不需另行安裝。這個版本尚未數位簽章；若 Windows SmartScreen 顯示不明發行者，先核對下載來源和官方頁列出的 SHA256，確認後選「其他資訊」→「仍要執行」。Windows 實機相容性尚未全面驗證，重要資料請先備份。
+從[官方下載頁](https://keelungit.com/expertcar/#download)下載 `ExpertCar-0.1.1-win-x64.zip`，解壓縮整個資料夾後執行 `ExpertCar.App.exe`。ZIP 已包含 .NET 執行環境，不需另行安裝。這個版本尚未數位簽章；若 Windows SmartScreen 顯示不明發行者，先核對下載來源和官方頁列出的 SHA256，確認後選「其他資訊」→「仍要執行」。Windows 實機相容性尚未全面驗證，重要資料請先備份。
 
 資料庫位於 `%LOCALAPPDATA%\ExpertCar\expertcar.db`，與解壓縮的程式資料夾分開。資料庫升級前會在同一使用者資料目錄的 `backups` 子目錄建立備份；仍請自行保留重要資料的額外備份。
 
