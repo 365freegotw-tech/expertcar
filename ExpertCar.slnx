@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="ExpertCar.App/ExpertCar.App.csproj" />
+  <Project Path="ExpertCar.Core/ExpertCar.Core.csproj" />
+  <Project Path="ExpertCar.Data/ExpertCar.Data.csproj" />
+  <Project Path="ExpertCar.Import/ExpertCar.Import.csproj" />
+  <Project Path="ExpertCar.Tests/ExpertCar.Tests.csproj" />
+</Solution>

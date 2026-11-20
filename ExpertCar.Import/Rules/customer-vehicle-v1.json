@@ -1,0 +1,28 @@
+{
+  "version": "customer-vehicle-v1",
+  "profile": "customer-vehicle",
+  "sources": [
+    {
+      "file": "Base.mdb", "table": "CUSTOMER", "kind": "customerVehicle",
+      "schemas": ["73a0f385d2c6412df4cce3ffb52ea177a8170de86d2c71a742d11a57a3c6f9ca", "d51ddcd853f44e41c615684bca9b11b825e3439d06e7dbcfc04265ef81bc7194", "9c5bde12e8e577eec127483732f72c3f2b3446b4a9661da1a31891e054c7db3d"],
+      "required": ["NAME", "CAR_ID"],
+      "fields": { "name": "NAME", "address": "ADDR_H", "plate": "CAR_ID", "model": "CAR_STYLE", "year": "CAR_YEAR", "maintenanceDate": "Next_Date1", "maintenanceKm": "Next_Move1", "maintenanceDays": "Next_Days1", "inspectionDate": "VERIFY_DAT" },
+      "noteFields": ["NOTE", "NoteMemo"],
+      "contacts": { "PHONE": "Phone", "ACT_PHONE": "Phone", "PHONE_O": "Phone", "E_MAIL": "Email" },
+      "approvedRaw": ["CUSTNO", "CUST", "ADDR_NO", "PRE_NO", "CAR_NO", "MAKENO", "ENGINEER", "CARFACTOR1", "CARFACTOR2", "LAST_DATE", "LAST_DATE1", "LAST_MOVE", "Last_Move1", "SUREDATE11", "SUREDATE12", "SUREDATE21", "SUREDATE22", "LIMIT_DATE", "VERIFYDAT", "VerifyDat1", "RealVerify", "VERIFY_REC"]
+    },
+    {
+      "file": "CUSTNAME.DBF", "table": "CUSTNAME", "kind": "customer",
+      "schemas": ["c34016b8b6dbd0218cc34406da9d8456a934f5a8245a0eeb0695c644e2476459", "cf2acd7f0342e68e4967af9de344a842c3aa8f1e47aeb089d423880f3bfa5acc"],
+      "required": ["CUSTNAME"], "fields": { "name": "CUSTNAME" },
+      "approvedRaw": ["NO"]
+    },
+    {
+      "file": "CUSTPHON.DBF", "table": "CUSTPHON", "kind": "phone",
+      "schemas": ["7891b6836f473dc86f8c3d67978a87f19a7da7a1e7a41e987ed826847cb2c83f", "78749cfbc181e9cb3613a0c3a96129ea6b54c2bce6420253d08bd4dcbe9d7ac5"],
+      "required": ["CAR_ID"], "fields": { "plate": "CAR_ID" },
+      "contacts": { "PHONE1": "Phone", "PHONE2": "Phone", "PHONE3": "Phone", "PHONE4": "Phone", "PHONE5": "Phone", "PHONE6": "Phone", "PHONE7": "Phone", "PHONE8": "Phone", "PHONE9": "Phone", "PHONE10": "Phone" },
+      "approvedRaw": []
+    }
+  ]
+}
