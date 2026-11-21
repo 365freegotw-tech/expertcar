@@ -9,7 +9,9 @@ public sealed record CatalogRow(long Id, string Kind, string Code, string Name, 
     public string Price => (PriceMinor / 100m).ToString("N2", System.Globalization.CultureInfo.CurrentCulture);
 }
 public sealed record CatalogEditor(long? Id, string Kind, string Code, string Name, string Unit, long PriceMinor);
-public sealed record ShopSettings(string Name, string Contact, int ReminderDays, decimal CardFeePercent, decimal TaxPercent)
+public sealed record ShopSettings(string Name, string Contact, int ReminderDays, decimal CardFeePercent, decimal TaxPercent,
+    bool CardSurchargeEnabled = false, long HourlyRateMinor = 120000, string DocumentHeader = "",
+    string Address = "", string TaxId = "")
 {
     public static ShopSettings Default => new("", "", 30, 0m, 5m);
 }
@@ -24,6 +26,21 @@ public sealed record ImportProblem(string File, string Table, long Row, string C
         "UnlinkedPhone" => "電話無法連結車輛",
         "AmbiguousPhoneLink" => "電話對應多輛車，請核對",
         "DuplicatePlate" => "車牌重複，請核對",
+        "UnverifiedInspectionSemantics" => "驗車日期欄位語意待確認，未啟用提醒",
+        "UnverifiedInsurancePeriod" => "保險起訖欄位語意待確認，未啟用提醒",
+        "BlankCatalogPrice" => "來源價格空白，請核對目錄價格",
+        "UnknownOrderDate" => "來源工單日期無法辨識，請核對",
+        "MissingCustomerOrPlate" => "缺少客戶姓名或車牌",
+        "MissingCustomerCodeOrName" => "缺少客戶代碼或姓名",
+        "DuplicateCustomerCode" => "客戶代碼重複或對應姓名不同",
+        "MissingCatalogCodeOrName" => "缺少目錄代碼或名稱",
+        "DuplicateCatalogCode" => "目錄代碼重複",
+        "MissingOrderNumber" or "MissingEstimateNumber" => "缺少工單或估價單號",
+        "DuplicateOrderNumber" => "工單號碼重複",
+        "MissingVehicle" => "來源工單無法連結車輛",
+        "OrphanSourceRow" => "來源明細或付款無法連結工單",
+        "AmbiguousExistingPlate" => "資料庫內有多台相同車牌，請核對",
+        "UnresolvedPreviousImport" => "前次匯入待確認的來源列，尚未新增",
         _ when Code.StartsWith("InvalidDate:", StringComparison.Ordinal) => "日期格式無效，請核對",
         _ when Code.StartsWith("InvalidNumber:", StringComparison.Ordinal) => "數字格式無效，請核對",
         _ => "資料需人工核對"

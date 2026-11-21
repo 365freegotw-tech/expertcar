@@ -1,15 +1,21 @@
 namespace ExpertCar.Core;
 
-public enum WorkOrderStatus { Estimate, InProgress, Completed, Settled, Void, ImportReview }
+// 舊列印 JSON 以 enum 數值保存；v0.1 的值不可重新編號。
+public enum WorkOrderStatus
+{
+    Estimate = 0, InProgress = 1, Completed = 2, Settled = 3, Void = 4, ImportReview = 5,
+    Accepted = 6, AwaitingCheckout = 7, Cancelled = 8
+}
 
 public static class WorkOrderTransitions
 {
     public static bool CanMove(WorkOrderStatus from, WorkOrderStatus to) => (from, to) switch
     {
-        (WorkOrderStatus.Estimate, WorkOrderStatus.InProgress or WorkOrderStatus.Void) => true,
-        (WorkOrderStatus.InProgress, WorkOrderStatus.Completed or WorkOrderStatus.Void) => true,
-        (WorkOrderStatus.Completed, WorkOrderStatus.Settled) => true,
-        (WorkOrderStatus.ImportReview, WorkOrderStatus.Estimate or WorkOrderStatus.InProgress or WorkOrderStatus.Completed or WorkOrderStatus.Void) => true,
+        (WorkOrderStatus.Estimate, WorkOrderStatus.Accepted or WorkOrderStatus.Cancelled) => true,
+        (WorkOrderStatus.Accepted, WorkOrderStatus.InProgress or WorkOrderStatus.Cancelled) => true,
+        (WorkOrderStatus.InProgress, WorkOrderStatus.AwaitingCheckout or WorkOrderStatus.Cancelled) => true,
+        (WorkOrderStatus.AwaitingCheckout, WorkOrderStatus.Settled or WorkOrderStatus.Cancelled) => true,
+        (WorkOrderStatus.ImportReview, WorkOrderStatus.Estimate or WorkOrderStatus.Accepted or WorkOrderStatus.InProgress or WorkOrderStatus.AwaitingCheckout or WorkOrderStatus.Cancelled) => true,
         _ => false
     };
 

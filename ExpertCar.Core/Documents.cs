@@ -10,7 +10,13 @@ public sealed record WorkOrderDocument(
     string Plate,
     IReadOnlyList<WorkOrderLineDocument> Lines,
     OrderTotals Totals,
-    int Revision);
+    int Revision,
+    string? Vin = null,
+    string? Diagnosis = null,
+    string? RepairDescription = null,
+    DateOnly? EstimateExpiresOn = null,
+    string? SignatureLabel = null,
+    string? AdditionalWorkNotice = null);
 
 public sealed record WorkOrderLineDocument(
     int LineNumber,
@@ -27,4 +33,5 @@ public sealed record PrintSnapshot(
     string DocumentKind,
     int Revision,
     WorkOrderDocument Model,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    CheckoutQuote? Checkout = null);

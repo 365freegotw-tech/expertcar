@@ -1,0 +1,29 @@
+--- a/configure
++++ b/configure
+@@ -19832,10 +19832,10 @@
+ 
+ 
+ CFLAGS="$CFLAGS -Wall"
+-LOCALE_T=locale_t
++LOCALE_T=_locale_t
+ case $host in #(
+   *mingw*) :
+-    LDFLAGS="$LDFLAGS -no-undefined" CFLAGS="$CFLAGS -D_spawnv=spawnv" ;; #(
++    LDFLAGS="$LDFLAGS -no-undefined" ;; #(
+   *) :
+      ;;
+ esac
+--- a/configure.ac
++++ b/configure.ac
+@@ -84,9 +84,9 @@
+ AC_SUBST(LFLAGS)
+ 
+ CFLAGS="$CFLAGS -Wall"
+-LOCALE_T=locale_t
++LOCALE_T=_locale_t
+ AS_CASE([$host],
+-        [*mingw*], [LDFLAGS="$LDFLAGS -no-undefined" CFLAGS="$CFLAGS -D_spawnv=spawnv"], [])
++        [*mingw*], [LDFLAGS="$LDFLAGS -no-undefined"], [])
+ AC_SUBST(LOCALE_T)
+ 
+ dnl See if iconv is present and wanted

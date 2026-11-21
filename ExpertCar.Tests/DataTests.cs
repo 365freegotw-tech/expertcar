@@ -14,7 +14,7 @@ public sealed class DataTests
         Assert.Equal(1, fixture.Scalar("SELECT max(version) FROM schema_migrations"));
         fixture.Execute("INSERT INTO customers(code,name) VALUES ('C001','王○明')");
         await fixture.Storage.InitializeAsync();
-        Assert.Equal(3, fixture.Scalar("SELECT max(version) FROM schema_migrations"));
+        Assert.Equal(6, fixture.Scalar("SELECT max(version) FROM schema_migrations"));
         Assert.Equal(1, fixture.Scalar("SELECT count(*) FROM customers"));
         var backup = Assert.Single(Directory.GetFiles(Path.Combine(fixture.Directory, "backups"), "*.db"));
         using (var saved = new SqliteConnection($"Data Source={backup};Mode=ReadOnly"))
@@ -28,10 +28,11 @@ public sealed class DataTests
         foreach (var name in new[] { "customers", "customer_contacts", "vehicles", "service_items", "parts",
             "service_parts", "work_orders", "work_order_lines", "payments", "insurers", "insurance_policies",
             "insurance_policy_items", "reminders", "print_snapshots", "work_order_events", "import_runs",
-            "import_records", "import_issues", "app_settings", "schema_migrations" })
+            "import_records", "import_issues", "app_settings", "schema_migrations", "vehicle_ownerships",
+            "vendors", "estimates", "work_order_additions", "customer_consents", "receivables", "import_source_links", "staff" })
             Assert.Contains(name, tables);
         await fixture.Storage.InitializeAsync();
-        Assert.Equal(3, fixture.Scalar("SELECT count(*) FROM schema_migrations"));
+        Assert.Equal(6, fixture.Scalar("SELECT count(*) FROM schema_migrations"));
     }
 
     [Fact]
@@ -48,6 +49,28 @@ public sealed class DataTests
         fixture.Execute("INSERT INTO vehicles(current_customer_id,plate,plate_key) VALUES (1,'TEST-01','TEST01')");
         fixture.Execute("INSERT INTO vehicles(current_customer_id,plate,plate_key) VALUES (1,'TEST 01','TEST01')");
         Assert.Equal(2, fixture.Scalar("SELECT count(*) FROM vehicles WHERE plate_key='TEST01'"));
+    }
+
+    [Fact]
+    public async Task VersionThreeUpgradeKeepsRowsAndMakesPreUpgradeBackup()
+    {
+        using var fixture = new DatabaseFixture();
+        fixture.Storage.MigrateTo(3);
+        fixture.Execute("INSERT INTO customers(code,name) VALUES ('C001','王○明')");
+        fixture.Execute("INSERT INTO vehicles(current_customer_id,plate,plate_key,make,model,model_year) VALUES (1,'ABC-1234','ABC1234','Toyota','Altis',2020)");
+        fixture.Execute("INSERT INTO work_orders(number,customer_id,vehicle_id,status,order_date) VALUES ('W001',1,1,'Completed','2026-11-20')");
+        await fixture.Storage.InitializeAsync();
+        Assert.Equal(6, fixture.Scalar("SELECT max(version) FROM schema_migrations"));
+        Assert.Equal(1, fixture.Scalar("SELECT count(*) FROM work_orders WHERE workflow_status='AwaitingCheckout'"));
+        Assert.Equal(1, fixture.Scalar("SELECT count(*) FROM vehicles WHERE make='Toyota' AND model='Altis' AND model_year=2020"));
+        fixture.Execute("INSERT INTO work_orders(number,customer_id,vehicle_id,status,order_date) VALUES ('W002',1,1,'Completed','2026-11-20')");
+        Assert.Equal(2, fixture.Scalar("SELECT count(*) FROM work_orders WHERE workflow_status='AwaitingCheckout'"));
+        var backup = Assert.Single(Directory.GetFiles(Path.Combine(fixture.Directory, "backups"), "*.db"));
+        using var saved = new SqliteConnection($"Data Source={backup};Mode=ReadOnly");
+        saved.Open();
+        using var cmd = saved.CreateCommand();
+        cmd.CommandText = "SELECT max(version) FROM schema_migrations";
+        Assert.Equal(3, (long)cmd.ExecuteScalar()!);
     }
 
     [Fact]

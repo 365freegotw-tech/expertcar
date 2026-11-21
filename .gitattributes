@@ -1,0 +1,5 @@
+# Keep upstream license text and patch context byte-for-byte.
+licenses/** -whitespace
+tools/mdbtools/windows/licenses/** -whitespace
+tools/mdbtools/build/*.patch -whitespace
+tools/mdbtools/windows/build/*.patch -whitespace

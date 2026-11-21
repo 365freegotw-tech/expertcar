@@ -1,100 +1,640 @@
-<Window x:Class="ExpertCar.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="汽修賺錢專家" Height="800" Width="1220"
-        MinHeight="650" MinWidth="980" FontSize="19" Background="#F7F9FC" Foreground="#16243A">
+<?xml version="1.0" ?>
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:ExpertCar.App.Presentation;assembly=ExpertCar.App.Presentation" xmlns:local="clr-namespace:ExpertCar.App" x:Class="ExpertCar.App.MainWindow" Title="汽修賺錢專家 · v0.2" Width="1440" Height="960" MinWidth="1180" MinHeight="760" FontFamily="Microsoft JhengHei" FontSize="18" Background="#F3F6FA" Foreground="#18334F" PreviewKeyDown="Window_PreviewKeyDown">
     <Window.Resources>
-        <Style TargetType="Button"><Setter Property="Padding" Value="14,8"/><Setter Property="Margin" Value="4"/><Setter Property="MinHeight" Value="42"/></Style>
-        <Style TargetType="TextBox"><Setter Property="MinHeight" Value="38"/><Setter Property="Margin" Value="4"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>
-        <Style TargetType="DatePicker"><Setter Property="MinHeight" Value="38"/><Setter Property="Margin" Value="4"/></Style>
-        <Style TargetType="ComboBox"><Setter Property="MinHeight" Value="38"/><Setter Property="Margin" Value="4"/></Style>
-        <Style TargetType="DataGrid"><Setter Property="Margin" Value="4"/><Setter Property="RowHeight" Value="42"/><Setter Property="HeadersVisibility" Value="Column"/><Setter Property="IsReadOnly" Value="True"/><Setter Property="SelectionMode" Value="Single"/></Style>
-        <Style TargetType="TextBlock"><Setter Property="VerticalAlignment" Value="Center"/></Style>
+        <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
+        <local:CategoryConverter x:Key="CategoryText"/>
+        <Style TargetType="Button">
+            <Setter Property="MinHeight" Value="44"/>
+            <Setter Property="Padding" Value="12,7"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Background" Value="#EEF4FB"/>
+            <Setter Property="BorderBrush" Value="#AFC6DE"/>
+            <Setter Property="Foreground" Value="#184A78"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="Padding" Value="7,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="MinHeight" Value="42"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="5,9"/>
+            <Setter Property="MinHeight" Value="30"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="Margin" Value="4"/>
+            <Setter Property="MinRowHeight" Value="44"/>
+            <Setter Property="HeadersVisibility" Value="Column"/>
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="CanUserAddRows" Value="False"/>
+            <Setter Property="SelectionMode" Value="Single"/>
+            <Setter Property="EnableRowVirtualization" Value="True"/>
+            <Setter Property="EnableColumnVirtualization" Value="True"/>
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True"/>
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+        </Style>
+        <Style TargetType="TabItem">
+            <Setter Property="Padding" Value="14,10"/>
+        </Style>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#D2DEEC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="7"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="5"/>
+        </Style>
+        <Style x:Key="Title" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="23"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Margin" Value="4,4,4,12"/>
+        </Style>
     </Window.Resources>
-    <DockPanel Margin="16">
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4,0,4,12">
-            <TextBlock Text="汽修賺錢專家" FontWeight="Bold" FontSize="26"/>
-            <TextBlock x:Name="StatusText" Margin="24,0" Foreground="#34506D"/>
-        </StackPanel>
-        <TabControl x:Name="MainTabs" KeyboardNavigation.TabNavigation="Continue">
-            <TabItem Header="首頁提醒">
-                <DockPanel Margin="12">
-                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal">
-                        <TextBlock Text="提醒未來天數"/>
-                        <TextBox x:Name="DaysBox" Width="75" Text="30"/>
-                        <Button Content="更新名單" Click="RefreshReminders_Click"/>
-                        <Button Content="標籤／通知函列印（B06）" Click="PrintPlaceholder_Click"/>
-                    </StackPanel>
-                    <TextBlock DockPanel.Dock="Bottom" Text="日期與里程分開顯示；里程須有目前公里數才會判定到期。缺日期車輛另列。" Margin="6" Foreground="#34506D"/>
-                    <DataGrid x:Name="RemindersGrid" AutoGenerateColumns="False">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="選取" Width="65"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                            <DataGridTextColumn Header="分組" Binding="{Binding Group}" Width="90"/><DataGridTextColumn Header="客戶" Binding="{Binding Customer}" Width="150"/>
-                            <DataGridTextColumn Header="車牌" Binding="{Binding Plate}" Width="130"/><DataGridTextColumn Header="項目" Binding="{Binding Kind}" Width="90"/>
-                            <DataGridTextColumn Header="日期到期" Binding="{Binding DateStatus}" Width="190"/><DataGridTextColumn Header="里程到期" Binding="{Binding MileageStatus}" Width="210"/>
-                            <DataGridTextColumn Header="地址" Binding="{Binding Address}" Width="*"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+    <DockPanel Margin="12">
+        <Border DockPanel.Dock="Top" Background="#193E62" Padding="14" Margin="0,0,0,8">
+            <DockPanel>
+                <TextBlock Text="汽修賺錢專家 · ExpertCar" Foreground="White" FontSize="24" FontWeight="Bold"/>
+                <TextBlock Text="{Binding DashboardText}" Foreground="White" HorizontalAlignment="Right"/>
+            </DockPanel>
+        </Border>
+        <StackPanel DockPanel.Dock="Top">
+            <WrapPanel>
+                <TextBlock Text="車牌快查（F2）"/>
+                <TextBox x:Name="QuickSearchBox" Width="300" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" KeyDown="Search_KeyDown" ToolTip="輸入車牌、姓名或電話，Enter 搜尋" AutomationProperties.Name="車牌姓名電話快查"/>
+                <Button Content="查車與歷史" Command="{Binding SearchCommand}"/>
+                <Button Content="＋ 開新工單" Command="{Binding NewOrderCommand}"/>
+                <Button Content="客戶／車輛維護" Click="Legacy_Click"/>
+                <Button Content="操作導覽" Click="Tour_Click"/>
+            </WrapPanel>
+            <Border Background="#FFF1CF" Padding="7" Visibility="{Binding ShowTour, Converter={StaticResource BoolVisibility}}">
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="開始使用" Command="{Binding DismissTourCommand}"/>
+                    <TextBlock Text="① F2 輸入車牌後 Enter → 選車看履歷　② 開新工單 → 選目錄或新增明細　③ 儲存估價 → 同意／施工／完工　④ 試算收款 → 預覽列印。Tab 依畫面順序移動。"/>
                 </DockPanel>
-            </TabItem>
-            <TabItem Header="客戶／車輛">
-                <Grid Margin="12"><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
-                    <DockPanel Grid.Column="0">
-                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"><TextBox x:Name="SearchBox" Width="250" ToolTip="姓名、電話或車牌" KeyDown="SearchBox_KeyDown"/><Button Content="搜尋" Click="Search_Click"/></StackPanel>
-                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"><Button Content="新增客戶" Click="NewCustomer_Click"/><Button Content="編輯選取客戶" Click="EditCustomer_Click"/></StackPanel>
-                        <DataGrid x:Name="CustomersGrid" AutoGenerateColumns="False" SelectionChanged="CustomersGrid_SelectionChanged">
-                            <DataGrid.Columns><DataGridTextColumn Header="姓名" Binding="{Binding Name}" Width="*"/><DataGridTextColumn Header="電話" Binding="{Binding Phone}" Width="150"/><DataGridTextColumn Header="地址" Binding="{Binding Address}" Width="180"/></DataGrid.Columns>
-                        </DataGrid>
-                    </DockPanel>
-                    <DockPanel Grid.Column="1" Margin="12,0,0,0">
-                        <StackPanel DockPanel.Dock="Bottom">
-                            <TextBlock Text="車輛資料" FontWeight="Bold" FontSize="19" Margin="4,10"/>
-                            <WrapPanel><TextBlock Text="車牌" Width="90"/><TextBox x:Name="PlateBox" Width="160"/><TextBlock Text="車型" Width="70"/><TextBox x:Name="ModelBox" Width="180"/></WrapPanel>
-                            <WrapPanel><TextBlock Text="目前公里" Width="90"/><TextBox x:Name="OdometerBox" Width="160"/><TextBlock Text="保養公里" Width="90"/><TextBox x:Name="MaintenanceKmBox" Width="160"/></WrapPanel>
-                            <WrapPanel><TextBlock Text="保養日期" Width="90"/><DatePicker x:Name="MaintenanceDatePicker" Width="160"/><TextBlock Text="驗車日期" Width="90"/><DatePicker x:Name="InspectionDatePicker" Width="160"/></WrapPanel>
-                            <WrapPanel><Button Content="新增車輛" Click="NewVehicle_Click"/><Button Content="儲存車輛" Click="SaveVehicle_Click"/></WrapPanel>
-                            <TextBlock Text="歷次工單（B05 完成後顯示）" Margin="4,8" Foreground="#34506D"/>
-                            <DataGrid Height="65" AutoGenerateColumns="False"><DataGrid.Columns><DataGridTextColumn Header="日期" Width="130"/><DataGridTextColumn Header="工單號" Width="160"/><DataGridTextColumn Header="狀態" Width="130"/></DataGrid.Columns></DataGrid>
-                        </StackPanel>
-                        <DataGrid x:Name="VehiclesGrid" AutoGenerateColumns="False" SelectionChanged="VehiclesGrid_SelectionChanged">
-                            <DataGrid.Columns><DataGridTextColumn Header="車牌" Binding="{Binding Plate}" Width="130"/><DataGridTextColumn Header="車型" Binding="{Binding Model}" Width="140"/><DataGridTextColumn Header="保養日" Binding="{Binding MaintenanceDate}" Width="120"/><DataGridTextColumn Header="保養公里" Binding="{Binding MaintenanceKm}" Width="120"/><DataGridTextColumn Header="驗車日" Binding="{Binding InspectionDate}" Width="120"/></DataGrid.Columns>
-                        </DataGrid>
-                    </DockPanel>
+            </Border>
+            <TextBlock Text="v0.2 本機資料庫：工單、收款與匯入結果會保留。匯入前請核對演練及待確認清單。" Foreground="#875000"/>
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Bottom">
+            <TextBlock Text="{Binding Message}" Foreground="#A33221" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock Text="F2 車牌快查　｜　Enter 搜尋　｜　Tab 移動焦點　｜　所有金額由服務報價；列印使用報價快照。" FontSize="15" Foreground="#546D86"/>
+        </StackPanel>
+        <TabControl SelectedIndex="{Binding SelectedTab}" KeyboardNavigation.TabNavigation="Continue">
+            <TabItem Header="首頁">
+                <Grid Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="今天先處理什麼" Style="{StaticResource Title}"/>
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource Card}">
+                            <DockPanel>
+                                <WrapPanel DockPanel.Dock="Top">
+                                    <TextBlock Text="快查結果：先選車，再開新工單"/>
+                                    <Button Content="查看車輛履歷" Command="{Binding OpenVehicleCommand}"/>
+                                </WrapPanel>
+                                <DataGrid ItemsSource="{Binding Vehicles}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedVehicle}" MouseDoubleClick="Vehicle_DoubleClick">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="車牌" Binding="{Binding Plate}" Width="140"/>
+                                        <DataGridTextColumn Header="車主" Binding="{Binding CustomerName}" Width="*"/>
+                                        <DataGridTextColumn Header="車型" Binding="{Binding Model}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Grid.Column="1">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Top">
+                                    <TextBlock Text="待收款名單" Style="{StaticResource Title}"/>
+                                    <TextBlock Text="{Binding OrderPageStatus}"/>
+                                    <WrapPanel><Button Content="上一頁" Command="{Binding PreviousOrdersCommand}"/><Button Content="下一頁" Command="{Binding NextOrdersCommand}"/></WrapPanel>
+                                </StackPanel>
+                                <DataGrid ItemsSource="{Binding UnpaidOrders}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedHistoryOrder}" MouseDoubleClick="Order_DoubleClick">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="單號" Binding="{Binding Number}" Width="*"/>
+                                        <DataGridTextColumn Header="未收" Binding="{Binding Due}" Width="150"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                    <Grid Grid.Row="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/>
+                            <ColumnDefinition Width="2*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource Card}">
+                            <DockPanel>
+                                <TextBlock Text="今日約定交車" DockPanel.Dock="Top" FontWeight="Bold"/>
+                                <TextBlock Text="依約定日期與待結帳狀態列示；用上方頁碼查看其他工單。" DockPanel.Dock="Bottom" FontSize="15"/>
+                                <DataGrid ItemsSource="{Binding DeliveryOrders}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedHistoryOrder}" MouseDoubleClick="Order_DoubleClick">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="單號" Binding="{Binding Number}" Width="*"/>
+                                        <DataGridTextColumn Header="車牌" Binding="{Binding Description}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Grid.Column="1">
+                            <DockPanel>
+                                <WrapPanel DockPanel.Dock="Top">
+                                    <TextBlock Text="提醒名單（保險／來源日期請先確認）"/>
+                                    <Button Content="更新" Command="{Binding RefreshCommand}"/>
+                                </WrapPanel>
+                                <DataGrid ItemsSource="{Binding Reminders}" AutoGenerateColumns="False">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="車牌" Binding="{Binding Plate}" Width="130"/>
+                                        <DataGridTextColumn Header="車主" Binding="{Binding Customer}" Width="*"/>
+                                        <DataGridTextColumn Header="類別" Binding="{Binding Kind}" Width="150"/>
+                                        <DataGridTextColumn Header="到期" Binding="{Binding Due}" Width="240"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
                 </Grid>
             </TabItem>
-            <TabItem Header="項目／零件目錄">
-                <DockPanel Margin="12">
-                    <StackPanel DockPanel.Dock="Bottom">
-                        <WrapPanel><TextBlock Text="類別" Width="70"/><ComboBox x:Name="CatalogKindBox" Width="100"><ComboBoxItem Content="項目" IsSelected="True"/><ComboBoxItem Content="零件"/></ComboBox>
-                            <TextBlock Text="代碼" Width="60"/><TextBox x:Name="CatalogCodeBox" Width="130"/><TextBlock Text="名稱" Width="60"/><TextBox x:Name="CatalogNameBox" Width="200"/></WrapPanel>
-                        <WrapPanel><TextBlock Text="單位" Width="70"/><TextBox x:Name="CatalogUnitBox" Width="100"/><TextBlock Text="預設價格（元）" Width="140"/><TextBox x:Name="CatalogPriceBox" Width="140"/><TextBlock Text="現金價、未稅" Foreground="#34506D"/></WrapPanel>
-                        <WrapPanel><Button Content="新增項目／零件" Click="NewCatalog_Click"/><Button Content="儲存目錄" Click="SaveCatalog_Click"/></WrapPanel>
+            <TabItem Header="車輛履歷">
+                <Grid Margin="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="360"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Card}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="車與客戶" Style="{StaticResource Title}"/>
+                                <TextBlock Text="{Binding VehicleInfo}"/>
+                                <TextBlock Text="{Binding OwnerContact}"/>
+                                <TextBlock Text="目前里程" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Odometer}"/>
+                                <TextBlock Text="VIN 17 碼位置提示：擋風玻璃左下、駕駛座門框或行照。未知欄位請核對原始資料。" FontSize="16"/>
+                                <TextBlock Text="同客戶其他車" FontWeight="Bold"/>
+                                <ListBox ItemsSource="{Binding OtherVehicles}" DisplayMemberPath="Plate" SelectedItem="{Binding SelectedOtherVehicle}" Height="100"/>
+                                <Button Content="查看選取車輛" Command="{Binding OpenOtherVehicleCommand}"/>
+                                <Button Content="用這台車開工單" Command="{Binding HistoryNewOrderCommand}"/>
+                                <TextBlock Text="車籍編輯" FontWeight="Bold"/>
+                                <TextBlock Text="VIN（17 碼）"/><TextBox Text="{Binding VehicleVin, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="廠牌"/><TextBox Text="{Binding VehicleMake, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="車型"/><TextBox Text="{Binding VehicleModel, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="年份（西元）"/><TextBox Text="{Binding VehicleYear, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="車色"/><TextBox Text="{Binding VehicleColor, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Button Content="儲存車籍" Command="{Binding SaveVehicleCommand}"/>
+                                <TextBlock Text="過戶：選取新車主與生效日；舊工單保留原車主" FontWeight="Bold"/>
+                                <TextBlock Text="以姓名、電話或客戶代碼搜尋新車主"/>
+                                <TextBox Text="{Binding TransferQuery, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Button Content="搜尋新車主（最多 50 筆）" Command="{Binding SearchTransferCustomersCommand}"/>
+                                <ComboBox ItemsSource="{Binding TransferCustomers}" SelectedItem="{Binding SelectedTransferCustomer}">
+                                    <ComboBox.ItemTemplate><DataTemplate><StackPanel><TextBlock Text="{Binding Name}"/><TextBlock Text="{Binding Phone}" FontSize="14"/></StackPanel></DataTemplate></ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBox Text="{Binding TransferDate, UpdateSourceTrigger=PropertyChanged}" ToolTip="生效日 yyyy-MM-dd"/>
+                                <Button Content="確認過戶" Command="{Binding TransferVehicleCommand}"/>
+                                <TextBlock Text="過戶紀錄" FontWeight="Bold"/>
+                                <DataGrid ItemsSource="{Binding Ownerships}" AutoGenerateColumns="False" Height="140">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="車主" Binding="{Binding CustomerName}" Width="*"/>
+                                        <DataGridTextColumn Header="起日" Binding="{Binding StartsOn, StringFormat=yyyy/MM/dd}" Width="120"/>
+                                        <DataGridTextColumn Header="迄日" Binding="{Binding EndsOn, StringFormat=yyyy/MM/dd}" Width="120"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                    <Border Style="{StaticResource Card}" Grid.Column="1">
+                        <DockPanel>
+                            <TextBlock Text="這台車的維修履歷" DockPanel.Dock="Top" Style="{StaticResource Title}"/>
+                            <StackPanel DockPanel.Dock="Bottom">
+                                <Button Content="開啟選取工單" Command="{Binding OpenOrderCommand}"/>
+                                <TextBlock Text="保養／驗車／保險" FontWeight="Bold"/>
+                                <DataGrid ItemsSource="{Binding VehicleReminders}" AutoGenerateColumns="False" Height="170">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="類別" Binding="{Binding Kind}" Width="180"/>
+                                        <DataGridTextColumn Header="到期" Binding="{Binding Due}" Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <TextBlock Text="保險日期尚待店家確認；未提供的日期不派提醒。" FontSize="16"/>
+                            </StackPanel>
+                            <DataGrid ItemsSource="{Binding HistoryOrders}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedHistoryOrder}" MouseDoubleClick="Order_DoubleClick">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="日期" Binding="{Binding Date, StringFormat=yyyy/MM/dd}" Width="130"/>
+                                    <DataGridTextColumn Header="單號" Binding="{Binding Number}" Width="180"/>
+                                    <DataGridTextColumn Header="內容／來源" Binding="{Binding Description}" Width="*"/>
+                                    <DataGridTextColumn Header="金額" Binding="{Binding Total}" Width="140"/>
+                                    <DataGridTextColumn Header="狀態" Binding="{Binding Status}" Width="130"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+            <TabItem Header="開工單／估價">
+                <Grid Margin="6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="250"/>
+                        <ColumnDefinition/>
+                        <ColumnDefinition Width="265"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Card}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="車與客戶" Style="{StaticResource Title}"/>
+                                <TextBlock Text="{Binding DraftVehicle}" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding DraftVehicleInfo}"/>
+                                <TextBlock Text="VIN 17 碼位置：擋風玻璃左下、駕駛座門框或行照。" FontSize="16"/>
+                                <TextBlock Text="{Binding StatusText}"/>
+                                <StackPanel IsEnabled="{Binding Editable}">
+                                    <TextBlock Text="單號"/>
+                                    <TextBox Text="{Binding Number, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                                    <TextBlock Text="診斷結果／客訴"/>
+                                    <TextBox Text="{Binding Diagnosis, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="85"/>
+                                    <TextBlock Text="維修項目說明"/>
+                                    <TextBox Text="{Binding RepairDescription, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="85"/>
+                                    <TextBlock Text="估價有效期限 yyyy-MM-dd"/>
+                                    <TextBox Text="{Binding ExpiresOn, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                                    <TextBlock Text="約定交車日期 yyyy-MM-dd"/>
+                                    <TextBox Text="{Binding PromisedDeliveryOn, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                                    <TextBlock Text="客人授權簽名欄文字"/>
+                                    <TextBox Text="{Binding SignatureLabel, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                                    <TextBlock Text="注意事項"/>
+                                    <TextBox Text="{Binding AdditionalNotice, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                    <Border Style="{StaticResource Card}" Grid.Column="1">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="估價明細" Style="{StaticResource Title}"/>
+                                <DataGrid ItemsSource="{Binding Lines}" AutoGenerateColumns="False" Height="215" SelectedItem="{Binding SelectedLine}">
+                                    <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="類別" Width="100">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding Category, Converter={StaticResource CategoryText}}"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="項目／零件" Binding="{Binding Name}" Width="*"/>
+                                        <DataGridTextColumn Header="數量" Binding="{Binding Quantity}" Width="75"/>
+                                        <DataGridTextColumn Header="單價" Binding="{Binding Price}" Width="100"/>
+                                        <DataGridTextColumn Header="加修 ID" Binding="{Binding AdditionId}" Width="85"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                                <WrapPanel>
+                                    <Button Content="從目錄選項目" Command="{Binding SearchCatalogCommand}" Click="GoCatalog_Click"/>
+                                    <Button Content="＋ 自訂明細" Command="{Binding AddLineCommand}"/>
+                                    <Button Content="移除選取明細" Command="{Binding RemoveLineCommand}"/>
+                                </WrapPanel>
+                                <StackPanel IsEnabled="{Binding Editable}">
+                                    <Border Background="#F1F6FC" Padding="8">
+                                        <StackPanel>
+                                            <TextBlock Text="選取明細後編輯：工資／零件／耗材／環保費／外包" FontWeight="Bold"/>
+                                            <ComboBox ItemsSource="{x:Static ui:LineEditor.Categories}" SelectedItem="{Binding SelectedLine.Category}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Converter={StaticResource CategoryText}}"/>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <TextBlock Text="名稱"/>
+                                            <TextBox Text="{Binding SelectedLine.Name, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                                            <WrapPanel>
+                                                <TextBlock Text="料號"/>
+                                                <TextBox Text="{Binding SelectedLine.PartNumber, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="180"/>
+                                                <TextBlock Text="單位"/>
+                                                <TextBox Text="{Binding SelectedLine.Unit, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="70"/>
+                                            </WrapPanel>
+                                            <WrapPanel>
+                                                <TextBlock Text="數量"/>
+                                                <TextBox Text="{Binding SelectedLine.Quantity, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="100"/>
+                                                <TextBlock Text="單價／固定工資"/>
+                                                <TextBox Text="{Binding SelectedLine.Price, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="130"/>
+                                            </WrapPanel>
+                                            <WrapPanel>
+                                                <CheckBox Content="以工時 × 費率計價" IsChecked="{Binding SelectedLine.Hourly}"/>
+                                                <TextBlock Text="分鐘"/>
+                                                <TextBox Text="{Binding SelectedLine.Minutes, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="80"/>
+                                                <TextBlock Text="元／時"/>
+                                                <TextBox Text="{Binding SelectedLine.HourlyRate, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="100"/>
+                                            </WrapPanel>
+                                            <TextBlock Text="外包廠商（外包必填）"/>
+                                            <TextBox Text="{Binding SelectedLine.Vendor, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <WrapPanel>
+                                        <Button Content="＋ 追加維修" Command="{Binding AddAdditionCommand}"/>
+                                        <Button Content="選取明細歸入此加修" Command="{Binding AssignAdditionCommand}"/>
+                                        <Button Content="改為原工單明細" Command="{Binding ClearAdditionCommand}"/>
+                                    </WrapPanel>
+                                    <TextBlock Text="追加維修：未同意的明細不併入結帳；同意後請儲存。" Foreground="#875000"/>
+                                    <ListBox ItemsSource="{Binding Additions}" SelectedItem="{Binding SelectedAddition}" MaxHeight="360" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Id, StringFormat=加修編號 {0}}"/>
+                                                    <TextBox Text="{Binding Title, UpdateSourceTrigger=PropertyChanged}" ToolTip="加修項目"/>
+                                                    <TextBox Text="{Binding Reason, UpdateSourceTrigger=PropertyChanged}" ToolTip="加修原因"/>
+                                                    <WrapPanel>
+                                                        <TextBlock Text="同意人"/>
+                                                        <TextBox Width="140" Text="{Binding CustomerName, UpdateSourceTrigger=PropertyChanged}"/>
+                                                        <TextBlock Text="方式"/>
+                                                        <TextBox Width="150" Text="{Binding Method, UpdateSourceTrigger=PropertyChanged}" ToolTip="電話、現場或訊息"/>
+                                                    </WrapPanel>
+                                                    <CheckBox Content="客人已同意此加修" IsChecked="{Binding Accepted}"/>
+                                                    <TextBlock Text="{Binding ConsentTime}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                    <Border Style="{StaticResource Card}" Grid.Column="2">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock Text="金額與下一步" Style="{StaticResource Title}"/>
+                                <TextBlock Text="整單折扣（元）"/>
+                                <TextBox Text="{Binding Discount, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" IsEnabled="{Binding Editable}"/>
+                                <TextBlock Text="現金價 · 未稅" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding CashText}" FontSize="28" Foreground="#1765A4"/>
+                                <TextBlock Text="金額須儲存並試算後，由服務回傳；付款前再次核對。" FontSize="16"/>
+                                <Button Content="儲存草稿" Command="{Binding SaveCommand}"/>
+                                <Button Content="儲存並更新金額" Command="{Binding SaveQuoteCommand}"/>
+                                <Button Content="預覽估價單" Click="Estimate_Click"/>
+                                <Button Content="{Binding NextActionText}" Command="{Binding NextStatusCommand}"/>
+                                <Button Content="前往結帳預覽" Command="{Binding QuoteCommand}"/>
+                                <Button Content="取消工單（保留紀錄）" Command="{Binding CancelOrderCommand}"/>
+                                <Button Content="刪除未同意草稿" Command="{Binding DeleteDraftCommand}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Border>
+                </Grid>
+            </TabItem>
+            <TabItem Header="結帳">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="三種計價，一次看清" Style="{StaticResource Title}"/>
+                        <UniformGrid Columns="3">
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Text="現金價 · 未稅基價"/>
+                                    <TextBlock Text="{Binding CashText}" FontSize="28" Foreground="#1765A4"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Text="開發票"/>
+                                    <TextBlock Text="{Binding InvoiceText}" FontSize="28" Foreground="#1765A4"/>
+                                    <TextBlock Text="{Binding InvoiceQuote.TaxMinor, Converter={x:Static local:MoneyConverter.Instance}, StringFormat=稅額 {0}}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Text="刷卡預覽（依下方發票選擇）"/>
+                                    <TextBlock Text="{Binding CardText}" FontSize="28" Foreground="#1765A4"/>
+                                    <TextBlock Text="{Binding CardQuote.CardSurchargeMinor, Converter={x:Static local:MoneyConverter.Instance}, StringFormat=刷卡加成 {0}}" Visibility="{Binding ShowCardPreviewSurcharge, Converter={StaticResource BoolVisibility}}"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition/>
+                                <ColumnDefinition/>
+                                <ColumnDefinition/>
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource Card}">
+                                <StackPanel>
+                                    <TextBlock Text="本次結帳" Style="{StaticResource Title}"/>
+                                    <TextBlock Text="{Binding DraftVehicle}"/>
+                                    <TextBlock Text="{Binding StatusText}"/>
+                                    <TextBlock Text="整單折扣（元），變更後須重新試算"/>
+                                    <TextBox Text="{Binding Discount, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" IsEnabled="{Binding Editable}"/>
+                                    <ComboBox ItemsSource="{Binding PaymentMethods}" SelectedItem="{Binding PaymentMethod}"/>
+                                    <CheckBox Content="開發票（依店家稅率）" IsChecked="{Binding IssueInvoice}"/>
+                                    <TextBlock Text="發票由店家於外部系統開立；本畫面不代表免稅判斷。" FontSize="16"/>
+                                    <Button Content="更新三種預覽與本次報價" Command="{Binding QuoteCommand}"/>
+                                    <TextBlock Text="本次實收（元）"/>
+                                    <TextBox Text="{Binding PaymentAmount, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                                    <Button Content="記錄本次收款" Command="{Binding PayCommand}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Grid.Column="1">
+                                <StackPanel>
+                                    <TextBlock Text="價金拆解" Style="{StaticResource Title}"/>
+                                    <TextBlock Text="{Binding SelectedQuote.BaseMinor, Converter={x:Static local:MoneyConverter.Instance}, StringFormat=折後基價：{0}}"/>
+                                    <TextBlock Text="{Binding SelectedQuote.DiscountMinor, Converter={x:Static local:MoneyConverter.Instance}, StringFormat=折扣：{0}}"/>
+                                    <TextBlock Text="{Binding SelectedQuote.TaxMinor, Converter={x:Static local:MoneyConverter.Instance}, StringFormat=發票稅額：{0}}"/>
+                                    <TextBlock Text="{Binding SelectedQuote.CardSurchargeMinor, Converter={x:Static local:MoneyConverter.Instance}, StringFormat=刷卡加成：{0}}" Visibility="{Binding ShowCardSurcharge, Converter={StaticResource BoolVisibility}}"/>
+                                    <TextBlock Text="本次應收"/>
+                                    <TextBlock Text="{Binding TotalText}" FontSize="28" FontWeight="Bold"/>
+                                    <TextBlock Text="已收"/>
+                                    <TextBlock Text="{Binding PaidText}"/>
+                                    <TextBlock Text="結餘應收"/>
+                                    <TextBlock Text="{Binding DueText}" FontSize="24" Foreground="#A33221"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Grid.Column="2">
+                                <StackPanel>
+                                    <TextBlock Text="完成交車" Style="{StaticResource Title}"/>
+                                    <TextBlock Text="部分付款保留應收；服務確認付清後才能完成交車。"/>
+                                    <Button Content="{Binding NextActionText}" Command="{Binding NextStatusCommand}"/>
+                                    <Button Content="預覽收據" Click="Receipt_Click"/>
+                                    <Button Content="預覽維修單" Click="WorkOrderPrint_Click"/>
+                                    <TextBlock Text="付款紀錄（每筆獨立保留）" FontWeight="Bold"/>
+                                    <DataGrid ItemsSource="{Binding Payments}" AutoGenerateColumns="False" Height="220">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="方式" Binding="{Binding Method}" Width="75"/>
+                                            <DataGridTextColumn Header="金額" Binding="{Binding AmountMinor, Converter={x:Static local:MoneyConverter.Instance}}" Width="130"/>
+                                            <DataGridTextColumn Header="時間" Binding="{Binding ReceivedAt, Converter={x:Static local:TaipeiDateTimeConverter.Instance}}" Width="200"/>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
                     </StackPanel>
-                    <DataGrid x:Name="CatalogGrid" AutoGenerateColumns="False" SelectionChanged="CatalogGrid_SelectionChanged">
-                        <DataGrid.Columns><DataGridTextColumn Header="類別" Binding="{Binding Kind}" Width="100"/><DataGridTextColumn Header="代碼" Binding="{Binding Code}" Width="150"/><DataGridTextColumn Header="名稱" Binding="{Binding Name}" Width="*"/><DataGridTextColumn Header="單位" Binding="{Binding Unit}" Width="100"/><DataGridTextColumn Header="價格（元）" Binding="{Binding Price}" Width="120"/></DataGrid.Columns>
-                    </DataGrid>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="列印預覽">
+                <DockPanel Margin="10">
+                    <WrapPanel DockPanel.Dock="Top">
+                        <TextBlock Text="A4 單據 · 方向於店家設定選擇 · 逐頁核對後列印"/>
+                        <ComboBox SelectedValue="{Binding PrintKind}" SelectedValuePath="Tag" Width="140">
+                            <ComboBoxItem Content="估價單" Tag="Estimate"/>
+                            <ComboBoxItem Content="維修單" Tag="WorkOrder"/>
+                            <ComboBoxItem Content="收據" Tag="Receipt"/>
+                        </ComboBox>
+                        <Button Content="更新預覽" Command="{Binding PrintCommand}"/>
+                        <Button Content="列印" Click="Print_Click"/>
+                        <Button Content="另存 PDF" Click="Pdf_Click"/>
+                    </WrapPanel>
+                    <DocumentViewer x:Name="PrintViewer"/>
                 </DockPanel>
+            </TabItem>
+            <TabItem Header="項目／零件目錄">
+                <Grid Margin="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Card}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Top">
+                                <TextBlock Text="找常用工資與零件" Style="{StaticResource Title}"/>
+                                <WrapPanel>
+                                    <TextBox Width="260" Text="{Binding CatalogQuery, UpdateSourceTrigger=PropertyChanged}" TextChanged="CatalogQuery_Changed" KeyDown="Catalog_KeyDown" ToolTip="代碼或名稱，即時篩選"/>
+                                    <ComboBox Width="100" ItemsSource="{Binding CatalogKinds}" SelectedItem="{Binding CatalogKind}" SelectionChanged="CatalogKind_Changed"/>
+                                    <Button Content="搜尋" Command="{Binding SearchCatalogCommand}"/>
+                                </WrapPanel>
+                                <TextBlock Text="{Binding CatalogStatus}"/>
+                            </StackPanel>
+                            <WrapPanel DockPanel.Dock="Bottom">
+                                <Button Content="上一頁" Command="{Binding PreviousCatalogCommand}"/>
+                                <Button Content="下一頁" Command="{Binding NextCatalogCommand}"/>
+                                <Button Content="帶入工單" Command="{Binding AddCatalogCommand}"/>
+                            </WrapPanel>
+                            <DataGrid ItemsSource="{Binding Catalog}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedCatalogItem}" SelectionChanged="Catalog_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="類別" Binding="{Binding Kind}" Width="90"/>
+                                    <DataGridTextColumn Header="代碼" Binding="{Binding Code}" Width="150"/>
+                                    <DataGridTextColumn Header="名稱" Binding="{Binding Name}" Width="*"/>
+                                    <DataGridTextColumn Header="單位" Binding="{Binding Unit}" Width="70"/>
+                                    <DataGridTextColumn Header="現金價未稅" Binding="{Binding Price}" Width="140"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                    <Border Style="{StaticResource Card}" Grid.Column="1">
+                        <DockPanel>
+                            <TextBlock Text="搭配零件候選" DockPanel.Dock="Top" Style="{StaticResource Title}"/>
+                            <TextBlock Text="在下方複選零件後可儲存為此項目的建議組合（儲存於資料庫）。帶入工單時可再調整數量與價格。" DockPanel.Dock="Top"/>
+                            <StackPanel DockPanel.Dock="Bottom">
+                                <TextBlock Text="已設定的建議搭配" FontWeight="Bold"/>
+                                <ScrollViewer MaxHeight="140" VerticalScrollBarVisibility="Auto">
+                                    <ItemsControl ItemsSource="{Binding RecommendedParts}" DisplayMemberPath="Name"/>
+                                </ScrollViewer>
+                                <Button Content="將選取零件設為建議搭配" Click="SaveSuggestedParts_Click"/>
+                                <Button Content="帶入工單（含建議零件）" Command="{Binding AddCatalogWithPartsCommand}"/>
+                                <Button Content="僅帶入選取零件" Click="AddSuggestedPart_Click"/>
+                            </StackPanel>
+                            <DataGrid ItemsSource="{Binding SuggestedParts}" AutoGenerateColumns="False" x:Name="SuggestedPartsGrid" SelectionMode="Extended">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="名稱" Binding="{Binding Name}" Width="*"/>
+                                    <DataGridTextColumn Header="價格" Binding="{Binding Price}" Width="130"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </Border>
+                </Grid>
             </TabItem>
             <TabItem Header="舊資料匯入">
                 <DockPanel Margin="16">
                     <StackPanel DockPanel.Dock="Top">
-                        <TextBlock Text="可匯入 SuperCar 資料" FontSize="22" FontWeight="Bold"/>
-                        <TextBlock Text="SuperCar 為其權利人之商標，本軟體與其無任何關係" Margin="0,6,0,16"/>
-                        <WrapPanel><TextBlock Text="1. 來源資料夾" Width="150"/><TextBox x:Name="SourceFolderBox" Width="550" IsReadOnly="True"/><Button Content="選擇資料夾" Click="ChooseFolder_Click"/></WrapPanel>
-                        <WrapPanel><Button Content="2. 掃描並演練" Click="PreviewImport_Click"/><TextBlock x:Name="ImportSummaryText" Margin="12,0" Text="尚未演練"/></WrapPanel>
-                        <TextBlock Text="3. 檢查成功／跳過／待處理／失敗及下列問題；匯入前會備份目前資料庫。" Margin="4,12"/>
+                        <TextBlock Text="可匯入 SuperCar（賺錢高手）資料" Style="{StaticResource Title}"/>
+                        <TextBlock Text="SuperCar、賺錢高手為其權利人之商標，本軟體與其無任何關係"/>
+                        <TextBlock Text="1 選來源 → 2 掃描與演練 → 3 備份與匯入 → 4 核對結果"/>
+                        <WrapPanel>
+                            <TextBox Text="{Binding ImportFolder, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}" Width="650" IsReadOnly="True"/>
+                            <Button Content="選擇來源資料夾" Click="ChooseImport_Click"/>
+                            <Button Content="掃描並演練" Command="{Binding DrillImportCommand}"/>
+                            <Button Content="備份並提交匯入" Command="{Binding CommitImportCommand}"/>
+                        </WrapPanel>
+                        <CheckBox Content="我已核對演練與待確認清單，確認匯入可新增資料" IsChecked="{Binding ImportConfirmed}"/>
+                        <TextBlock Text="{Binding ImportSummary}" FontSize="23" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding ImportNextStep}" Foreground="#875000"/>
                     </StackPanel>
-                    <StackPanel DockPanel.Dock="Bottom"><WrapPanel><Button x:Name="BackupImportButton" Content="4. 備份目前資料" Click="BackupImport_Click" IsEnabled="False"/><Button x:Name="CommitImportButton" Content="5. 確認匯入" Click="CommitImport_Click" IsEnabled="False"/><Button Content="6. 核對首頁與客戶清單" Click="VerifyImport_Click"/></WrapPanel><TextBlock x:Name="ImportResultText" Margin="4,8" TextWrapping="Wrap"/></StackPanel>
-                    <DataGrid x:Name="ImportProblemsGrid" AutoGenerateColumns="False"><DataGrid.Columns><DataGridTextColumn Header="檔案" Binding="{Binding File}" Width="200"/><DataGridTextColumn Header="資料表" Binding="{Binding Table}" Width="160"/><DataGridTextColumn Header="列" Binding="{Binding Row}" Width="90"/><DataGridTextColumn Header="問題" Binding="{Binding Description}" Width="*"/></DataGrid.Columns></DataGrid>
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <TextBlock Text="待確認事項" FontWeight="Bold"/>
+                        <DataGrid ItemsSource="{Binding ImportProblems}" AutoGenerateColumns="False" Height="150">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="來源檔案" Binding="{Binding File}" Width="*"/>
+                                <DataGridTextColumn Header="資料表" Binding="{Binding Table}" Width="150"/>
+                                <DataGridTextColumn Header="列" Binding="{Binding Row}" Width="75"/>
+                                <DataGridTextColumn Header="問題" Binding="{Binding Description}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <Button Content="下一步：首頁查車並核對" Click="VerifyImport_Click"/>
+                    </StackPanel>
+                    <DataGrid ItemsSource="{Binding ImportSources}" AutoGenerateColumns="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="來源檔" Binding="{Binding SourceFile}" Width="*"/>
+                            <DataGridTextColumn Header="資料表" Binding="{Binding SourceTable}" Width="150"/>
+                            <DataGridTextColumn Header="掃描" Binding="{Binding Scanned}" Width="85"/>
+                            <DataGridTextColumn Header="成功" Binding="{Binding Imported}" Width="85"/>
+                            <DataGridTextColumn Header="跳過" Binding="{Binding Skipped}" Width="85"/>
+                            <DataGridTextColumn Header="待確認" Binding="{Binding Pending}" Width="100"/>
+                            <DataGridTextColumn Header="失敗" Binding="{Binding Failed}" Width="85"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
                 </DockPanel>
             </TabItem>
             <TabItem Header="店家設定">
-                <StackPanel Margin="24" Width="560" HorizontalAlignment="Left">
-                    <TextBlock Text="店名"/><TextBox x:Name="ShopNameBox"/>
-                    <TextBlock Text="聯絡方式"/><TextBox x:Name="ShopContactBox"/>
-                    <TextBlock Text="提醒天數"/><TextBox x:Name="ShopDaysBox"/>
-                    <TextBlock Text="刷卡手續費 %"/><TextBox x:Name="CardFeeBox"/>
-                    <TextBlock Text="營業稅率 %"/><TextBox x:Name="TaxBox"/>
-                    <WrapPanel><Button Content="儲存設定" Click="SaveSettings_Click"/><Button Content="開啟監理服務網" Click="OpenMvdis_Click"/></WrapPanel>
-                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="20" Width="650" HorizontalAlignment="Left">
+                        <TextBlock Text="店家與單據設定" Style="{StaticResource Title}"/>
+                        <TextBlock Text="店名"/>
+                        <TextBox Text="{Binding ShopName, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                        <TextBlock Text="電話／聯絡方式"/>
+                        <TextBox Text="{Binding ShopContact, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                        <TextBlock Text="店家地址（單據列印用）"/>
+                        <TextBox Text="{Binding ShopAddress, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="統一編號（可留空）"/>
+                        <TextBox Text="{Binding ShopTaxId, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="單據抬頭（儲存於資料庫）"/>
+                        <TextBox Text="{Binding DocumentHeader, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                        <TextBlock Text="單據紙張與方向（估價單／維修單／收據共用）"/>
+                        <ComboBox SelectedValue="{Binding PrintOrientation}" SelectedValuePath="Tag">
+                            <ComboBoxItem Content="A4 直式" Tag="{x:Static ui:PrintOrientation.Portrait}"/>
+                            <ComboBoxItem Content="A4 橫式" Tag="{x:Static ui:PrintOrientation.Landscape}"/>
+                        </ComboBox>
+                        <TextBlock Text="預設工時費率（元／小時）"/>
+                        <TextBox Text="{Binding HourlyRate, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                        <TextBlock Text="提醒未來天數"/>
+                        <TextBox Text="{Binding ReminderDays, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                        <TextBlock Text="發票稅率 %"/>
+                        <TextBox Text="{Binding TaxPercent, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                        <CheckBox Content="啟用刷卡加成（預設關閉；啟用前請確認收單契約）" IsChecked="{Binding CardSurchargeEnabled}"/>
+                        <TextBlock Text="刷卡加成費率 %"/>
+                        <TextBox Text="{Binding CardPercent, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True, NotifyOnValidationError=True}"/>
+                        <Button Content="儲存店家設定" Command="{Binding SaveSettingsCommand}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+            <TabItem Header="全站工單">
+                <DockPanel Margin="16">
+                    <WrapPanel DockPanel.Dock="Top">
+                        <TextBlock Text="{Binding OrderPageStatus}"/>
+                        <Button Content="上一頁" Command="{Binding PreviousOrdersCommand}"/>
+                        <Button Content="下一頁" Command="{Binding NextOrdersCommand}"/>
+                        <Button Content="更新" Command="{Binding RefreshCommand}"/>
+                        <Button Content="開啟選取工單" Command="{Binding OpenOrderCommand}"/>
+                    </WrapPanel>
+                    <DataGrid ItemsSource="{Binding Orders}" AutoGenerateColumns="False" SelectedItem="{Binding SelectedHistoryOrder}" MouseDoubleClick="Order_DoubleClick">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="單號" Binding="{Binding Number}" Width="*"/>
+                            <DataGridTextColumn Header="車牌" Binding="{Binding Description}" Width="140"/>
+                            <DataGridTextColumn Header="日期" Binding="{Binding Date, StringFormat=yyyy/MM/dd}" Width="140"/>
+                            <DataGridTextColumn Header="狀態" Binding="{Binding Status}" Width="140"/>
+                            <DataGridTextColumn Header="總額" Binding="{Binding Total}" Width="140"/>
+                            <DataGridTextColumn Header="未收" Binding="{Binding Due}" Width="140"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
             </TabItem>
         </TabControl>
     </DockPanel>

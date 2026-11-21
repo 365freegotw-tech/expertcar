@@ -91,6 +91,7 @@ public class WorkspaceTests
             var vm = new WorkspaceViewModel(store);
             Assert.Equal(0m, (await vm.LoadSettingsAsync()).CardFeePercent);
             Assert.Equal(5m, (await vm.LoadSettingsAsync()).TaxPercent);
+            Assert.False((await vm.LoadSettingsAsync()).CardSurchargeEnabled);
             await vm.SaveSettingsAsync(new("汽修店", "02-12345678", 45, 2.5m, 5m));
             var reopened = new SqliteStorageService(Path.Combine(directory, "test.db"));
             Assert.Equal(45, (await reopened.GetShopSettingsAsync()).ReminderDays);

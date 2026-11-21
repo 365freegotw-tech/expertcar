@@ -1,0 +1,12 @@
+MDBTools 1.0.1 — built from the official source release for Windows x86-64.
+Source: https://github.com/mdbtools/mdbtools/releases/download/v1.0.1/mdbtools-1.0.1.tar.gz
+Source SHA256: ff9c425a88bc20bf9318a332eec50b17e77896eef65a0e69415ccb4e396d1812
+Static dependency: GNU libiconv 1.18 / libcharset, from ftp.gnu.org, signature verified.
+Compiler: Ubuntu MinGW-w64 POSIX GCC 13.2.0, binutils 2.41.90, MinGW headers 11.0.1.
+Full corresponding sources: sources/ (including libiconv signature).
+Full reproducible commands, compatibility patch and compiler hashes: build/.
+Executable hashes: SHA256SUMS.
+The command-line utilities are GPL-2.0-or-later; libmdb is LGPL-2.0-or-later.
+GNU libiconv/libcharset use LGPL-2.1-or-later. See COPYING, COPYING.LIB and licenses/.
+Only Windows system KERNEL32.dll and msvcrt.dll are imported; no extra DLLs.
+Windows runtime validation remains on the Windows acceptance checklist.

@@ -16,13 +16,15 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="../tools/e2e-v02/V02Workflow.cs" Link="V02Workflow.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Fixtures/synthetic-*.mdb;Fixtures/synthetic-*.dbf" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures/synthetic-*.mdb;Fixtures/synthetic-*.dbf;Fixtures/supercar-v02.zip" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../ExpertCar.App/Presentation/ExpertCar.App.Presentation.csproj" />
     <ProjectReference Include="..\ExpertCar.Core\ExpertCar.Core.csproj" />
     <ProjectReference Include="..\ExpertCar.Data\ExpertCar.Data.csproj" />
     <ProjectReference Include="..\ExpertCar.Import\ExpertCar.Import.csproj" />

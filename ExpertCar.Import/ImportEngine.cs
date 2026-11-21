@@ -19,13 +19,17 @@ public sealed class ImportEngine
     public ImportEngine(string? rulesPath = null, IEnumerable<IImportProfile>? profiles = null)
     {
         _rulesPath = rulesPath ?? Path.Combine(AppContext.BaseDirectory, "Rules", "customer-vehicle-v1.json");
-        _profiles = (profiles ?? [new CustomerVehicleImportProfile(_rulesPath)])
+        _profiles = (profiles ?? [new CustomerVehicleImportProfile(_rulesPath), new SupercarV02ImportProfile()])
             .ToDictionary(p => p.Id, StringComparer.Ordinal);
     }
 
     public async Task<ImportPlan> PreviewAsync(IReadOnlyList<string> sourcePaths, string targetPath,
         CancellationToken cancellationToken = default)
     {
+        if (sourcePaths.Any(path => Path.GetFileName(path).Equals("RCar089.MDB", StringComparison.OrdinalIgnoreCase) ||
+            Path.GetFileName(path).Equals("FixItem.MDB", StringComparison.OrdinalIgnoreCase) ||
+            Path.GetFileName(path).Equals("Item.MDB", StringComparison.OrdinalIgnoreCase)))
+            return await _profiles["supercar-v02"].PreviewAsync(sourcePaths, targetPath, cancellationToken);
         using var rules = JsonDocument.Parse(await File.ReadAllTextAsync(_rulesPath, cancellationToken));
         var id = rules.RootElement.GetProperty("profile").GetString();
         if (id is null || !_profiles.TryGetValue(id, out var profile))

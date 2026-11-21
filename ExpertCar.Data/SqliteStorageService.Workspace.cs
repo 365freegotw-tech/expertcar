@@ -183,7 +183,7 @@ public partial class SqliteStorageService
 
     public Task SaveShopSettingsAsync(ShopSettings settings, CancellationToken cancellationToken = default)
     {
-        if (settings.ReminderDays < 0 || settings.CardFeePercent is < 0 or > 100 || settings.TaxPercent is < 0 or > 100)
+        if (settings.HourlyRateMinor < 0 || settings.ReminderDays is < 0 or > 3650 || settings.CardFeePercent is < 0 or > 100 || settings.TaxPercent is < 0 or > 100)
             throw new ArgumentOutOfRangeException(nameof(settings));
         cancellationToken.ThrowIfCancellationRequested(); using var db = Open(); using var cmd = db.CreateCommand();
         cmd.CommandText = "INSERT INTO app_settings(key,value_json) VALUES ('shop',$json) ON CONFLICT(key) DO UPDATE SET value_json=excluded.value_json";

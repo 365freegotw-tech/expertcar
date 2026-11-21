@@ -27,16 +27,22 @@ public class CoreTests
     [Fact]
     public void WorkOrderStateMachineRejectsBackwardAndTerminalMoves()
     {
+        Assert.Equal(1, (int)WorkOrderStatus.InProgress);
+        Assert.Equal(2, (int)WorkOrderStatus.Completed);
+        Assert.Equal(WorkOrderStatus.Accepted,
+            WorkOrderTransitions.Move(WorkOrderStatus.Estimate, WorkOrderStatus.Accepted));
         Assert.Equal(WorkOrderStatus.InProgress,
-            WorkOrderTransitions.Move(WorkOrderStatus.Estimate, WorkOrderStatus.InProgress));
-        Assert.Equal(WorkOrderStatus.Completed,
-            WorkOrderTransitions.Move(WorkOrderStatus.InProgress, WorkOrderStatus.Completed));
+            WorkOrderTransitions.Move(WorkOrderStatus.Accepted, WorkOrderStatus.InProgress));
+        Assert.Equal(WorkOrderStatus.AwaitingCheckout,
+            WorkOrderTransitions.Move(WorkOrderStatus.InProgress, WorkOrderStatus.AwaitingCheckout));
         Assert.Equal(WorkOrderStatus.Settled,
-            WorkOrderTransitions.Move(WorkOrderStatus.Completed, WorkOrderStatus.Settled));
+            WorkOrderTransitions.Move(WorkOrderStatus.AwaitingCheckout, WorkOrderStatus.Settled));
         Assert.Throws<InvalidOperationException>(() =>
             WorkOrderTransitions.Move(WorkOrderStatus.Settled, WorkOrderStatus.InProgress));
         Assert.Throws<InvalidOperationException>(() =>
             WorkOrderTransitions.Move(WorkOrderStatus.Estimate, WorkOrderStatus.Settled));
+        Assert.Throws<InvalidOperationException>(() =>
+            WorkOrderTransitions.Move(WorkOrderStatus.Estimate, WorkOrderStatus.InProgress));
     }
 
     [Fact]

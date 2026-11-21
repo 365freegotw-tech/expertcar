@@ -9,5 +9,6 @@
     <ProjectReference Include="..\ExpertCar.Data\ExpertCar.Data.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.15" />
     <None Include="Rules/customer-vehicle-v1.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../tools/mdbtools/windows/**/*" Link="tools/mdbtools/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <Compile Remove="Presentation/**/*.cs" />
+    <ProjectReference Include="Presentation/ExpertCar.App.Presentation.csproj" />
     <ProjectReference Include="..\ExpertCar.Core\ExpertCar.Core.csproj" />
     <ProjectReference Include="..\ExpertCar.Data\ExpertCar.Data.csproj" />
     <ProjectReference Include="..\ExpertCar.Import\ExpertCar.Import.csproj" />
@@ -13,7 +15,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
-    <Version>0.1.1</Version>
   </PropertyGroup>
 
 </Project>

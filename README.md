@@ -1,42 +1,52 @@
-# 汽修賺錢專家（ExpertCar）
+# 汽修賺錢專家 ExpertCar 0.2.0-rc1
 
-[汽修賺錢專家官方網站](https://keelungit.com/expertcar/)提供產品說明與 Windows 下載。ExpertCar 是汽修廠單機使用的免費開源管理軟體，目前版本為 0.1.1。
+提供汽修店單機使用的客戶、車輛履歷、估價、工單、加修授權、收款與 A4 單據。資料存於本機 SQLite，關閉程式再開仍會保留。此版為試用候選版，請先用合成資料驗收。
 
-## 目前功能
+## 安裝與開始使用
 
-- Windows 10／11 x64 的 WPF 畫面：客戶與車輛、保養與驗車提醒、常用項目與零件目錄、店家設定。
-- SQLite 本機資料庫；工單與金額規則已建立，完整工單操作及列印仍在開發中。
-- 舊資料匯入精靈：先掃描、預覽與核對，再備份並以交易方式匯入支援的資料。
+Windows x64：將 `ExpertCar-0.2.0-rc1-win-x64.zip` 完整解壓到可寫入的資料夾，雙擊 `ExpertCar.App.exe`，不必另外安裝 .NET。請保留整個 `tools` 資料夾；匯入 MDB 時會呼叫內附工具。程式不要求系統管理員權限。
 
-## Windows 下載與執行
+資料庫位於 `%LOCALAPPDATA%\ExpertCar\expertcar.db`，備份位於同層 `backups`。更新程式前請關閉程式，另外複製整個 `%LOCALAPPDATA%\ExpertCar` 資料夾到安全位置。程式會在資料庫結構升級與匯入前建立備份；請自行安排額外異地備份。
 
-從[官方下載頁](https://keelungit.com/expertcar/#download)下載 `ExpertCar-0.1.1-win-x64.zip`，解壓縮整個資料夾後執行 `ExpertCar.App.exe`。ZIP 已包含 .NET 執行環境，不需另行安裝。這個版本尚未數位簽章；若 Windows SmartScreen 顯示不明發行者，先核對下載來源和官方頁列出的 SHA256，確認後選「其他資訊」→「仍要執行」。Windows 實機相容性尚未全面驗證，重要資料請先備份。
+先到「店家設定」填店名、電話、單據抬頭、地址、統編與工時費率。刷卡加成預設關閉；若店家決定啟用，須明確勾選並填費率。舊版 UI JSON 的工時費率、抬頭、地址、統編與建議零件會自動搬入資料庫，列印方向與導覽偏好仍留在 JSON。
 
-資料庫位於 `%LOCALAPPDATA%\ExpertCar\expertcar.db`，與解壓縮的程式資料夾分開。資料庫升級前會在同一使用者資料目錄的 `backups` 子目錄建立備份；仍請自行保留重要資料的額外備份。
+## 如何匯入 SuperCar（賺錢高手）資料
 
-## 舊資料匯入
+SuperCar、賺錢高手為其權利人之商標，本軟體與其無任何關係。
 
-可匯入部分 DBF／MDB 舊資料結構，包含部分 SuperCar 資料。實際支援欄位取決於來源結構與預覽結果；請先複製舊資料，用複本掃描、核對待處理項目，再確認匯入。MDB 匯入可能需要自行安裝 MDBTools；本版 ZIP **不附** MDBTools 執行檔或函式庫。SuperCar 為其權利人之商標，本軟體與 SuperCar 及其權利人沒有關聯、合作或背書關係。
+1. 關閉原軟體，先完整備份原始資料。只使用店家有權處理的資料；在複製出的資料夾操作，保留原檔。
+2. 初次試用請解壓另外提供的 `synthetic-shop-demo.zip`，選其中的 `synthetic` 資料夾。這些全是假資料。建議用獨立 Windows 測試帳號，避免混入既有店家資料。
+3. 開啟「舊資料匯入」→「選擇來源資料夾」→「掃描並演練」。完整店家來源可包含 `Base.mdb`、`Item.MDB`、`FixItem.MDB`、`RCar089.MDB`、`SCar089.MDB`、`Fixrpt.mdb`、`PreRCar089.MDB`、`PreSCar089.MDB`、`Cust_Pay.MDB`、`WORK.MDB`、`CUSTNAME.DBF`；放在同一層。來源結構不符合時會拒絕或列出待確認，不會自動猜欄位。
+4. 查看各檔案／資料表的掃描、可新增、跳過、待確認與失敗計數，並核對下方待確認清單。演練不提交資料；匯入可能需要幾分鐘，請等畫面完成。
+5. 勾選「我已核對演練與待確認清單」後按「備份並提交匯入」。程式先備份目前資料庫，再用交易提交；畫面會顯示實際計數與備份位置。
+6. 回首頁輸入車牌，開車輛履歷，抽查舊工單明細、金額與付款。保險與驗車欄位需人工確認，未知語意不自動啟用提醒。
+7. 再按一次「掃描並演練」，相同來源應顯示成功 0，已匯入的資料列跳過，不會重複新增。待確認列仍需人工處理，重跑不等於問題已解決。修改過的來源請重新演練。
 
-## 建置與測試
+程式只讀取 MDB／DBF，不會修改原始檔；請勿直接覆蓋資料庫來合併兩家店。正式搬遷前應先抽查、試開單並保留原系統與備份。
 
-需要 .NET 10 SDK。Windows 可直接建置與執行；Linux 可交叉編譯 WPF，但不能在 Linux 執行 Windows 畫面。
+## 開單、收款與列印
 
-```sh
-dotnet build ExpertCar.slnx
-dotnet test ExpertCar.Tests/ExpertCar.Tests.csproj
+F2 搜尋車牌 → 查看履歷 → 用這台車開工單 → 加入工資、零件／料號、耗材、環保費、外包（另填廠商）→ 儲存估價。工資可用固定金額或工時分鐘 × 每小時費率。加修須記錄同意人、方式與時間；未同意項目不列入結帳。
+
+按「客人同意，轉工單」→「開始施工」→「完工，待結帳」。約定交車日期為今天且已待結帳的單據會出現在首頁；「全站工單」可翻頁查看全部單據。結帳選開發票及付款方式，更新報價後可分多筆收款，應收歸零後才可完成交車。
+
+估價單、維修單與收據預設 A4 直式，可在設定改橫式。預覽後按列印；輸出 PDF 選 Microsoft Print to PDF。發票須由店家另在合法發票系統開立，本程式單據不是統一發票。車輛過戶在履歷頁搜尋並選取現有新車主、填生效日，再確認；舊工單保留當時客戶。
+
+## 免責與商標
+
+SuperCar、賺錢高手為其權利人之商標，本軟體與其無任何關係。本專案為原創重寫，不包含原軟體程式碼或客人資料。匯入結果、來源欄位意義、稅務與收費政策須由店家核對。本軟體依 MIT 授權按現狀提供，無任何明示或默示擔保；請參閱 LICENSE 的完整條款。候選版請先於獨立帳號使用合成資料驗收。
+
+MDBTools 命令列工具及其靜態依賴另受 GPL／LGPL 等條款規範，主程式 MIT 不取代它們的授權。相符原始碼、修補與重建方式隨包提供，見 THIRD-PARTY-NOTICES.md 與 tools/mdbtools。
+
+## 開發與驗證
+
+.NET 10 SDK；Linux 的 MDB 測試另需發行版 MDBTools（`mdb-tables`、`mdb-schema`、`mdb-export`）在 PATH，或用 `EXPERTCAR_MDBTOOLS_DIR` 指定目錄。使用本機解壓的發行版套件時也需設定其 `LD_LIBRARY_PATH`。
+
+```bash
+dotnet build ExpertCar.slnx -p:EnableWindowsTargeting=true
+dotnet test ExpertCar.slnx -p:EnableWindowsTargeting=true
+dotnet run --project tools/e2e-v02/E2E.csproj -- ./synthetic ./new-verification-output
+dotnet publish ExpertCar.App/ExpertCar.App.csproj -c Release -r win-x64 --self-contained -p:EnableWindowsTargeting=true -p:DebugType=None -p:DebugSymbols=false
 ```
 
-MDB 整合測試需要 `mdb-tables`、`mdb-schema`、`mdb-export` 在 `PATH`，或設定 `EXPERTCAR_MDBTOOLS_DIR` 指向這三個命令所在目錄；未提供時，相關測試會跳過。Windows MDBTools 建置與散布說明見 [文件](docs/MDBTOOLS-WINDOWS.md)。`ExpertCar.Tests/Fixtures/` 的 MDB／DBF 均由合成資料產生，不含真實客戶資料。
-
-## 專案結構
-
-- `ExpertCar.App`：WPF 畫面。
-- `ExpertCar.Core`：資料模型、工單狀態與計價規則。
-- `ExpertCar.Data`：SQLite 儲存與資料庫升級。
-- `ExpertCar.Import`：唯讀舊檔掃描、預覽及匯入。
-- `ExpertCar.Tests`：核心、資料與匯入測試。
-
-## 授權與支援
-
-程式以 [MIT 授權](LICENSE)公開，著作權人為 keelungIT。第三方元件與 MDBTools 散布條件見 [THIRD-PARTY-NOTICES](THIRD-PARTY-NOTICES.md)。使用說明與後續版本請見[keelungIT 支援頁](https://keelungit.com/expertcar/)。
+App 與無 WPF 驗證共用 `ExpertCarServices.OpenAsync`，使用 `ImportV02Service : SqliteV02Service`，全套 ViewModel 不依賴 WPF；Memory 只留測試專案。Windows 工具不由 Linux 測試代替實機驗收，請照 docs/WINDOWS-ACCEPTANCE.md 操作。

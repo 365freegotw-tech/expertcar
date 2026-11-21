@@ -1,0 +1,45 @@
+{
+  "version": "1.0.1",
+  "target": "Windows x86-64",
+  "source": "https://github.com/mdbtools/mdbtools/releases/download/v1.0.1/mdbtools-1.0.1.tar.gz",
+  "source_sha256": "ff9c425a88bc20bf9318a332eec50b17e77896eef65a0e69415ccb4e396d1812",
+  "static_dependency": {
+    "name": "GNU libiconv + libcharset",
+    "version": "1.18",
+    "source": "https://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.18.tar.gz",
+    "sha256": "3b08f5f4f9b4eb82f151a7040bfd6fe6c6fb922efe4b1659c66ea933276965e8",
+    "signature_verified": true,
+    "signing_fingerprint": "9001B85AF9E1B83DF1BDA942F5BE8B267C6A406D"
+  },
+  "compiler": "Ubuntu MinGW-w64 GCC 13.2.0 POSIX / binutils 2.41.90 / MinGW headers 11.0.1",
+  "rebuild_script": "build/build-windows.sh",
+  "patch": "build/mingw-compat.patch",
+  "source_date_epoch": 1734307200,
+  "clean_builds_matching_sha256": 2,
+  "executables": {
+    "mdb-export.exe": {
+      "sha256": "bd675b1b8e45cfc35d853d812330fe0bb3c4c545f4fdadf206ef19cfd22ff9ae",
+      "imports": [
+        "KERNEL32.dll",
+        "msvcrt.dll"
+      ],
+      "pe_timestamp": 1734307200
+    },
+    "mdb-schema.exe": {
+      "sha256": "f5429524f801176f62387bd6e484dba7b111faf70eb194190ef04586b7862342",
+      "imports": [
+        "KERNEL32.dll",
+        "msvcrt.dll"
+      ],
+      "pe_timestamp": 1734307200
+    },
+    "mdb-tables.exe": {
+      "sha256": "8b2df2dd592b85c36e100641cec043c0cb56e7808e9f8b94424e320396367563",
+      "imports": [
+        "KERNEL32.dll",
+        "msvcrt.dll"
+      ],
+      "pe_timestamp": 1734307200
+    }
+  }
+}
