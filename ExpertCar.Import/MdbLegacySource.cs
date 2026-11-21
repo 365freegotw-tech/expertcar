@@ -3,12 +3,28 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("ExpertCar.Tests")]
+
 namespace ExpertCar.Import;
 
 public sealed class MdbLegacySource(string path, string? toolsDirectory = null, TimeSpan? timeout = null) : ILegacySource
 {
     private readonly TimeSpan _timeout = timeout ?? TimeSpan.FromSeconds(30);
+    private static readonly Encoding Utf8 = new UTF8Encoding(false, true);
+    private static readonly Encoding Cp950;
     private static readonly Regex ColumnPattern = new(@"^\s*`(?<name>[^`]+)`\s+(?<type>[a-zA-Z0-9_]+)(?:\s*\(\s*(?<length>\d+))?", RegexOptions.Compiled);
+
+    static MdbLegacySource()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        Cp950 = Encoding.GetEncoding(950, EncoderFallback.ExceptionFallback, DecoderFallback.ExceptionFallback);
+    }
+
+    internal static string DecodeOutput(byte[] bytes)
+    {
+        try { return Utf8.GetString(bytes); }
+        catch (DecoderFallbackException) { return Cp950.GetString(bytes); }
+    }
 
     public async Task<IReadOnlyList<LegacyTable>> GetTablesAsync(CancellationToken cancellationToken = default)
     {
@@ -18,12 +34,7 @@ public sealed class MdbLegacySource(string path, string? toolsDirectory = null, 
         foreach (var name in names)
         {
             var ddl = await RunTextAsync("mdb-schema", ["-T", name, path, "mysql"], cancellationToken);
-            var columns = ddl.Split('\n').Select(line => ColumnPattern.Match(line))
-                .Where(match => match.Success)
-                .Select(match => new LegacyColumn(match.Groups["name"].Value,
-                    match.Groups["type"].Value.ToLowerInvariant(),
-                    match.Groups["length"].Success ? int.Parse(match.Groups["length"].Value) : null))
-                .ToArray();
+            var columns = ParseColumns(ddl);
             if (columns.Length == 0)
                 throw new InvalidDataException($"mdb-schema 無法解析表 {name} 的欄位結構。");
             tables.Add(new LegacyTable(name, columns, null, ct => ReadRowsAsync(name, columns, ct)));
@@ -31,21 +42,26 @@ public sealed class MdbLegacySource(string path, string? toolsDirectory = null, 
         return tables;
     }
 
+    internal static LegacyColumn[] ParseColumns(string ddl) => ddl.Replace("\r", "").Split('\n')
+            .Select(line => ColumnPattern.Match(line.Trim()))
+                .Where(match => match.Success)
+                .Select(match => new LegacyColumn(match.Groups["name"].Value,
+                    match.Groups["type"].Value.ToLowerInvariant(),
+                    match.Groups["length"].Success ? int.Parse(match.Groups["length"].Value) : null))
+                .ToArray();
+
     private async IAsyncEnumerable<LegacyRow> ReadRowsAsync(string table, IReadOnlyList<LegacyColumn> columns,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        using var process = Start("mdb-export", ["-H", path, table]);
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(_timeout);
-        var stderr = process.StandardError.ReadToEndAsync(deadline.Token);
-        try
+        var output = await RunTextAsync("mdb-export", ["-H", path, table], cancellationToken);
+        using (var reader = new StringReader(output))
         {
-            using var output = process.StandardOutput;
             var record = new StringBuilder();
             var inQuotes = false;
             while (true)
             {
-                var line = await WithinDeadline(output.ReadLineAsync(deadline.Token).AsTask(), deadline.Token, cancellationToken, "mdb-export");
+                cancellationToken.ThrowIfCancellationRequested();
+                var line = reader.ReadLine();
                 if (line is null) break;
                 if (record.Length > 0) record.Append('\n');
                 record.Append(line);
@@ -65,28 +81,7 @@ public sealed class MdbLegacySource(string path, string? toolsDirectory = null, 
                 yield return new LegacyRow(values);
             }
             if (inQuotes || record.Length != 0) throw new InvalidDataException($"mdb-export 表 {table} 的 CSV 不完整。");
-            await WithinDeadline(process.WaitForExitAsync(deadline.Token), deadline.Token, cancellationToken, "mdb-export");
-            await WithinDeadline(stderr, deadline.Token, cancellationToken, "mdb-export");
-            if (process.ExitCode != 0) throw new InvalidDataException($"mdb-export 表 {table} 失敗（退出碼 {process.ExitCode}）。");
         }
-        finally
-        {
-            if (!process.HasExited) process.Kill(entireProcessTree: true);
-        }
-    }
-
-    private async Task<T> WithinDeadline<T>(Task<T> task, CancellationToken deadline, CancellationToken caller, string tool)
-    {
-        try { return await task; }
-        catch (OperationCanceledException) when (!caller.IsCancellationRequested && deadline.IsCancellationRequested)
-        { throw new TimeoutException($"{tool} 超過 {_timeout.TotalSeconds:g} 秒。"); }
-    }
-
-    private async Task WithinDeadline(Task task, CancellationToken deadline, CancellationToken caller, string tool)
-    {
-        try { await task; }
-        catch (OperationCanceledException) when (!caller.IsCancellationRequested && deadline.IsCancellationRequested)
-        { throw new TimeoutException($"{tool} 超過 {_timeout.TotalSeconds:g} 秒。"); }
     }
 
     private async Task<string> RunTextAsync(string tool, IReadOnlyList<string> args, CancellationToken cancellationToken)
@@ -96,13 +91,14 @@ public sealed class MdbLegacySource(string path, string? toolsDirectory = null, 
         deadline.CancelAfter(_timeout);
         try
         {
-            var stdout = process.StandardOutput.ReadToEndAsync(deadline.Token);
+            using var buffer = new MemoryStream();
+            var stdout = process.StandardOutput.BaseStream.CopyToAsync(buffer, deadline.Token);
             var stderr = process.StandardError.ReadToEndAsync(deadline.Token);
+            await stdout;
             await process.WaitForExitAsync(deadline.Token);
-            var result = await stdout;
             await stderr;
             if (process.ExitCode != 0) throw new InvalidDataException($"{tool} 失敗（退出碼 {process.ExitCode}）。");
-            return result;
+            return DecodeOutput(buffer.ToArray());
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -128,7 +124,6 @@ public sealed class MdbLegacySource(string path, string? toolsDirectory = null, 
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            StandardOutputEncoding = new UTF8Encoding(false, true),
             StandardErrorEncoding = Encoding.UTF8
         };
         info.Environment["MDB_JET3_CHARSET"] = "CP950";
@@ -138,7 +133,7 @@ public sealed class MdbLegacySource(string path, string? toolsDirectory = null, 
         catch (Win32Exception ex) { throw new FileNotFoundException($"找不到 MDBTools 命令 {tool}；請設定 EXPERTCAR_MDBTOOLS_DIR 為三個工具所在目錄，或將工具加入 PATH。", executable, ex); }
     }
 
-    private static IReadOnlyList<string> ParseCsv(string record)
+    internal static IReadOnlyList<string> ParseCsv(string record)
     {
         var cells = new List<string>();
         var value = new StringBuilder();

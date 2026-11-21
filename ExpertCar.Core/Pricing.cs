@@ -1,6 +1,6 @@
 namespace ExpertCar.Core;
 
-/// <summary>金額以分、數量以千分之一儲存；逐行及稅額採四捨五入（中點遠離零）。</summary>
+/// <summary>金額以分、數量以千分之一儲存；逐行採分、發票稅採整元四捨五入（中點遠離零）。</summary>
 public static class Pricing
 {
     public const long QuantityScale = 1000;
@@ -59,7 +59,7 @@ public sealed record ChargeLine(long TotalMinor, bool IsAdditional = false, bool
 
 public static class CheckoutPricing
 {
-    /// <summary>先合計已同意行項，再折扣、發票稅、刷卡加成；加成四捨五入至整元。</summary>
+    /// <summary>先合計已同意行項，再折扣、發票稅、刷卡加成；稅與加成四捨五入至整元。</summary>
     public static CheckoutQuote Calculate(IEnumerable<ChargeLine> lines, long discountMinor, CheckoutOptions options)
     {
         ArgumentNullException.ThrowIfNull(lines);
@@ -72,7 +72,7 @@ public static class CheckoutPricing
             .Aggregate(0L, (sum, line) => checked(sum + line.TotalMinor));
         if (discountMinor < 0 || discountMinor > subtotal) throw new ArgumentOutOfRangeException(nameof(discountMinor));
         var baseMinor = checked(subtotal - discountMinor);
-        var tax = options.IssueInvoice ? Pricing.RoundMinor(baseMinor * options.TaxRate) : 0;
+        var tax = options.IssueInvoice ? checked(Pricing.RoundMinor(baseMinor * options.TaxRate / 100m) * 100) : 0;
         var cardBase = checked(baseMinor + tax);
         var applied = options.PayByCard && options.CardSurchargeEnabled && options.CardRate > 0;
         var surcharge = applied ? checked(Pricing.RoundMinor(cardBase * options.CardRate / 100m) * 100) : 0;

@@ -83,7 +83,13 @@ public sealed class SupercarV02ImportProfile : IImportProfile
                 var chosen=file.Equals("Base.mdb",StringComparison.OrdinalIgnoreCase)?new[]{"INSURE","STAFF","SUPPLIAR","CUSTOMER"}:new[]{spec.Table};
                 foreach(var tableName in chosen)
                 {
-                    var table=tables.FirstOrDefault(t=>t.Name.Equals(tableName,StringComparison.OrdinalIgnoreCase));if(table is null)continue;
+                    var table=tables.FirstOrDefault(t=>t.Name.Equals(tableName,StringComparison.OrdinalIgnoreCase));
+                    if(table is null && tableName.Equals(spec.Table,StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidDataException($"無法辨識來源檔案 {file}：缺少表 {tableName}。請確認檔案與讀取工具編碼。");
+                    if(table is null)continue;
+                    if((tableName.Equals("PreRCarFix",StringComparison.OrdinalIgnoreCase)||tableName.Equals("PreSCarFix",StringComparison.OrdinalIgnoreCase)) &&
+                       !table.Columns.Any(c=>c.Name.Equals("估價單號",StringComparison.OrdinalIgnoreCase)))
+                        throw new InvalidDataException($"無法辨識來源檔案 {file}：表 {tableName} 缺少欄位 估價單號。請確認檔案與讀取工具編碼。");
                     var phase=tableName.ToUpperInvariant() switch{"INSURE"=>1,"STAFF"=>2,"SUPPLIAR"=>3,_=>spec.Phase};long row=0;
                     await foreach(var item in table.ReadRowsAsync(cancellationToken))
                     {

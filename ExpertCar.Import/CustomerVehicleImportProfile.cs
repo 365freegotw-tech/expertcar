@@ -46,6 +46,8 @@ internal sealed class SourceRule
     public string Table { get; set; } = "";
     public string Kind { get; set; } = "";
     public List<string> Schemas { get; set; } = [];
+    public string ReferenceFingerprint { get; set; } = "";
+    public List<LegacyColumn> ReferenceColumns { get; set; } = [];
     public List<string> Required { get; set; } = [];
     public Dictionary<string, string> Fields { get; set; } = [];
     public List<string> NoteFields { get; set; } = [];
@@ -78,7 +80,9 @@ public sealed class CustomerVehicleImportProfile : IImportProfile
     public string Id => "customer-vehicle";
 
     public CustomerVehicleImportProfile(string? rulesPath = null) => _rulesPath = rulesPath ??
-        Path.Combine(AppContext.BaseDirectory, "Rules", "customer-vehicle-v1.json");
+        (File.Exists(Path.Combine(AppContext.BaseDirectory, "tools", "Rules", "customer-vehicle-v1.json"))
+            ? Path.Combine(AppContext.BaseDirectory, "tools", "Rules", "customer-vehicle-v1.json")
+            : Path.Combine(AppContext.BaseDirectory, "Rules", "customer-vehicle-v1.json"));
 
     public async Task<ImportPlan> PreviewAsync(IReadOnlyList<string> sourcePaths, string targetPath,
         CancellationToken cancellationToken = default)
@@ -111,13 +115,14 @@ public sealed class CustomerVehicleImportProfile : IImportProfile
                 cancellationToken.ThrowIfCancellationRequested();
                 var file = Path.GetFileName(path);
                 var matches = rules.Sources.Where(r => r.File.Equals(file, StringComparison.OrdinalIgnoreCase)).ToArray();
-                if (matches.Length != 1) throw new InvalidDataException($"沒有唯一的來源規則：{file}");
+                if (matches.Length != 1) throw new InvalidDataException($"無法辨識來源檔案：{file}；請確認所選資料夾。");
                 var rule = matches[0];
                 ILegacySource source = Path.GetExtension(path).Equals(".mdb", StringComparison.OrdinalIgnoreCase)
                     ? new MdbLegacySource(path) : new DbfLegacySource(path);
                 var tables = await source.GetTablesAsync(cancellationToken);
-                if (rule.Schemas.Count > 0 && !rule.Schemas.Contains(SchemaFingerprint.Compute(tables), StringComparer.OrdinalIgnoreCase))
-                    throw new InvalidDataException($"來源結構指紋不符合核准規則：{file}");
+                var actualSchema = SchemaFingerprint.Compute(tables);
+                if (rule.Schemas.Count > 0 && !rule.Schemas.Contains(actualSchema, StringComparer.OrdinalIgnoreCase))
+                    throw await SchemaMismatchAsync(rule, tables, paths, targetPath, cancellationToken);
                 var table = tables.SingleOrDefault(t =>
                     t.Name.Equals(rule.Table, StringComparison.OrdinalIgnoreCase))
                     ?? throw new InvalidDataException($"來源缺少表：{rule.Table}");
@@ -149,6 +154,44 @@ public sealed class CustomerVehicleImportProfile : IImportProfile
                 alreadyImported ? [] : issues, alreadyImported);
         }
         catch { stage.Dispose(); throw; }
+    }
+
+    internal static async Task<InvalidDataException> SchemaMismatchAsync(SourceRule rule, IReadOnlyList<LegacyTable> tables,
+        IReadOnlyList<string> paths, string targetPath, CancellationToken cancellationToken)
+    {
+        var file = Path.GetFileName(paths.First(p => Path.GetFileName(p).Equals(rule.File, StringComparison.OrdinalIgnoreCase)));
+        var targetDirectory = Path.GetDirectoryName(Path.GetFullPath(targetPath))!;
+        Directory.CreateDirectory(targetDirectory);
+        var diagnostic = Path.Combine(targetDirectory, "import-schema-diagnostic.txt");
+        var actualSchema = SchemaFingerprint.Compute(tables);
+        var actualTable = tables.FirstOrDefault(t => t.Name.Equals(rule.Table, StringComparison.OrdinalIgnoreCase));
+        var differences = CompareColumns(rule.Table, rule.ReferenceColumns, actualTable?.Columns).ToArray();
+        var missingRequired = rule.Required.Where(name => !tables.SelectMany(t => t.Columns).Any(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase))).ToArray();
+        var detail = $"來源檔：{file}\n已選檔案：{string.Join(", ", paths.Select(Path.GetFileName))}\n" +
+            $"實際結構指紋：{actualSchema}\n核准結構指紋：{string.Join(", ", rule.Schemas)}\n" +
+            $"欄位差異（對照核准版本 {rule.ReferenceFingerprint}）：\n{string.Join("\n", differences)}\n" +
+            $"缺少必要欄位：{(missingRequired.Length == 0 ? "無" : string.Join(", ", missingRequired))}\n" +
+            string.Join("\n", tables.Select(t => $"表 {t.Name}: " + string.Join(", ", t.Columns.Select(c => $"{c.Name} {c.Type}{(c.Length is null ? "" : $"({c.Length})")}")))) +
+            "\n可能是讀取工具編碼問題，請將診斷檔傳給客服。\n";
+        await File.WriteAllTextAsync(diagnostic, detail, cancellationToken);
+        return new InvalidDataException($"{file} 無法辨識，欄位結構與核准版本不同：{differences.FirstOrDefault() ?? "結構摘要不同"}。可能是讀取工具編碼問題，請將診斷檔傳給客服：{diagnostic}");
+    }
+
+    private static IEnumerable<string> CompareColumns(string table, IReadOnlyList<LegacyColumn> expected, IReadOnlyList<LegacyColumn>? actual)
+    {
+        if (actual is null) { yield return $"{table} 表不存在"; yield break; }
+        var found = actual.ToDictionary(c => c.Name, StringComparer.OrdinalIgnoreCase);
+        foreach (var column in expected)
+        {
+            if (found.TryGetValue(column.Name, out var value) &&
+                (!column.Type.Equals(value.Type, StringComparison.OrdinalIgnoreCase) || column.Length != value.Length || column.Decimals != value.Decimals))
+                yield return $"{table}.{column.Name} 預期 {column.Type}({column.Length})，實際 {value.Type}({value.Length})";
+        }
+        foreach (var column in expected.Where(c => !found.ContainsKey(c.Name)))
+            yield return $"{table} 表少了 {column.Name} 欄位";
+        var names = expected.Select(c => c.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var column in actual.Where(c => !names.Contains(c.Name)))
+            yield return $"{table} 表多了 {column.Name} 欄位";
     }
 
     public async Task<ImportReceipt> CommitAsync(ImportPlan plan, CancellationToken cancellationToken = default)

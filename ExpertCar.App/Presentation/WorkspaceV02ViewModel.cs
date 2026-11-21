@@ -13,6 +13,7 @@ public sealed class WorkspaceV02ViewModel : Observable
     private long? draftVehicleId, draftCustomerId;
     private string draftPlate = "", draftCustomerName = "", draftVehicleInfo = "";
     private int catalogPage = 1, catalogTotal;
+    private int partsPage = 1, partsTotal;
     private int orderPage = 1, orderTotal;
     private long nextAdditionId = 1;
     private VehicleQuickResult? displayedVehicle;
@@ -40,6 +41,9 @@ public sealed class WorkspaceV02ViewModel : Observable
         SearchCatalogCommand = Command(() => SearchCatalogAsync(true));
         PreviousCatalogCommand = Command(async () => { catalogPage--; await SearchCatalogAsync(false); }, () => catalogPage > 1);
         NextCatalogCommand = Command(async () => { catalogPage++; await SearchCatalogAsync(false); }, () => catalogPage * 30 < catalogTotal);
+        SearchPartsCommand = Command(() => SearchPartsAsync(true));
+        PreviousPartsCommand = Command(async () => { partsPage--; await SearchPartsAsync(false); }, () => partsPage > 1);
+        NextPartsCommand = Command(async () => { partsPage++; await SearchPartsAsync(false); }, () => partsPage * 30 < partsTotal);
         AddCatalogCommand = Command(AddCatalogAsync, () => Editable && SelectedCatalogItem is not null);
         AddCatalogWithPartsCommand = Command(AddCatalogWithPartsAsync, () => Editable && SelectedCatalogItem is not null);
         PayCommand = Command(PayAsync, () => CurrentOrder?.Status == WorkOrderStatus.AwaitingCheckout && SelectedQuote is not null && !dirty);
@@ -110,7 +114,7 @@ public sealed class WorkspaceV02ViewModel : Observable
     public ObservableCollection<ImportSourceCount> ImportSources { get; } = [];
     public ObservableCollection<ImportProblem> ImportProblems { get; } = [];
     public IReadOnlyList<string> PaymentMethods { get; } = ["現金", "刷卡", "轉帳"];
-    public IReadOnlyList<string> CatalogKinds { get; } = ["", "項目", "零件"];
+    public IReadOnlyList<string> CatalogKinds { get; } = ["全部", "項目", "零件"];
     public bool Editable => draftVehicleId is not null && (CurrentOrder is null || (CurrentOrder.Payments.Count == 0 && CurrentOrder.Status is not (WorkOrderStatus.Settled or WorkOrderStatus.Cancelled or WorkOrderStatus.Void)));
     public string DraftVehicle => $"{draftPlate} ／ {draftCustomerName}";
     public string DraftVehicleInfo => draftVehicleInfo;
@@ -136,7 +140,11 @@ public sealed class WorkspaceV02ViewModel : Observable
     public string Query { get => query; set => Set(ref query, value); }
     private string catalogQuery = "";
     public string CatalogQuery { get => catalogQuery; set => Set(ref catalogQuery, value); }
-    private string catalogKind = "";
+    private string partsQuery = "";
+    public string PartsQuery { get => partsQuery; set => Set(ref partsQuery, value); }
+    private string partsStatus = "";
+    public string PartsStatus { get => partsStatus; set => Set(ref partsStatus, value); }
+    private string catalogKind = "全部";
     public string CatalogKind { get => catalogKind; set => Set(ref catalogKind, value); }
     private int selectedTab = 0;
     public int SelectedTab { get => selectedTab; set => Set(ref selectedTab, value); }
@@ -270,6 +278,9 @@ public sealed class WorkspaceV02ViewModel : Observable
     public AsyncCommand AssignAdditionCommand { get; }
     public AsyncCommand ClearAdditionCommand { get; }
     public AsyncCommand SearchCatalogCommand { get; }
+    public AsyncCommand SearchPartsCommand { get; }
+    public AsyncCommand PreviousPartsCommand { get; }
+    public AsyncCommand NextPartsCommand { get; }
     public AsyncCommand PreviousCatalogCommand { get; }
     public AsyncCommand NextCatalogCommand { get; }
     public AsyncCommand AddCatalogCommand { get; }
@@ -523,7 +534,7 @@ public sealed class WorkspaceV02ViewModel : Observable
     {
         var version = ++catalogVersion;
         var pageNumber = reset ? 1 : catalogPage;
-        var page = await service.SearchCatalogAsync(new(CatalogQuery.Trim(), CatalogKind, pageNumber, 30));
+        var page = await service.SearchCatalogAsync(new(CatalogQuery.Trim(), CatalogKind == "全部" ? null : CatalogKind, pageNumber, 30));
         if (version != catalogVersion) return;
         catalogPage = page.Page; catalogTotal = page.TotalCount;
         Replace(Catalog, page.Items); CatalogStatus = $"共 {page.TotalCount} 筆 · 第 {page.Page} 頁";
@@ -533,28 +544,79 @@ public sealed class WorkspaceV02ViewModel : Observable
     {
         SuggestedParts.Clear(); RecommendedParts.Clear();
         var item = SelectedCatalogItem;
-        if (item?.Kind != "項目") return;
-        var parts = await AllPartsAsync();
+        if (item?.Kind != "項目") { PartsStatus = "請先在左側選取「項目」"; return; }
+        await SearchPartsAsync(true);
+        var parts = await service.GetSuggestedPartsAsync(item.Id);
         if (SelectedCatalogItem != item) return;
-        Replace(SuggestedParts, parts);
-        var ids = await service.GetSuggestedPartIdsAsync(item.Id);
-        Replace(RecommendedParts, parts.Where(p => ids.Contains(p.Id)));
+        Replace(RecommendedParts, parts);
     }
-    private async Task<IReadOnlyList<CatalogRow>> AllPartsAsync()
+    public async Task SearchPartsAsync(bool reset)
     {
-        var parts = new List<CatalogRow>();
-        var page = await service.SearchCatalogAsync(new("", "零件", 1, 100));
-        parts.AddRange(page.Items);
-        for (var number = 2; (number - 1) * 100 < page.TotalCount; number++)
-            parts.AddRange((await service.SearchCatalogAsync(new("", "零件", number, 100))).Items);
-        return parts;
+        var page = await service.SearchCatalogAsync(new(PartsQuery.Trim(), "零件", reset ? 1 : partsPage, 30));
+        partsPage = page.Page; partsTotal = page.TotalCount;
+        Replace(SuggestedParts, page.Items);
+        PartsStatus = $"共 {partsTotal} 筆 · 第 {partsPage} 頁";
+        foreach (var command in commands) command.Refresh();
     }
     public async Task SaveSuggestedPartsAsync(IEnumerable<long> ids)
     {
         if (SelectedCatalogItem?.Kind != "項目") throw new ArgumentException("請先選取工資項目，再設定搭配零件");
-        var valid = (await AllPartsAsync()).Select(p => p.Id).ToHashSet();
-        await service.SaveSuggestedPartIdsAsync(SelectedCatalogItem.Id, ids.Where(valid.Contains).Distinct().ToArray());
+        var additions = ids.Distinct().ToArray();
+        if (additions.Length == 0) throw new ArgumentException("請先在候選清單選取零件");
+        await service.SaveSuggestedPartIdsAsync(SelectedCatalogItem.Id, RecommendedParts.Select(p => p.Id).Concat(additions).Distinct().ToArray());
         await SuggestPartsAsync(); Message = "建議搭配零件已儲存至資料庫；帶入時複製數量 1 與目錄價格";
+    }
+    public async Task RemoveSuggestedPartAsync(long id)
+    {
+        if (SelectedCatalogItem?.Kind != "項目" || RecommendedParts.All(p => p.Id != id))
+            throw new ArgumentException("請先選取已設定的建議零件");
+        await service.SaveSuggestedPartIdsAsync(SelectedCatalogItem.Id, RecommendedParts.Where(p => p.Id != id).Select(p => p.Id).ToArray());
+        await SuggestPartsAsync(); Message = "已移除這顆建議零件";
+    }
+    public async Task BackupToAsync(string folder)
+    {
+        var path = await storage.CreateBackupToAsync(folder);
+        Message = $"備份完成：{path}";
+    }
+    public async Task ClearAllDataAsync(Func<bool> firstConfirmation, Func<string?> typedConfirmation)
+    {
+        var backup = await storage.CreateBackupAsync();
+        if (!File.Exists(backup)) throw new IOException("自動備份未完成，資料未清空");
+        if (!firstConfirmation() || typedConfirmation()?.Trim() != "清空")
+        {
+            Message = $"已取消清空；自動備份保留在：{backup}";
+            return;
+        }
+        await storage.ResetToEmptyAsync();
+        preferences.Save(new AppPreferences(TourSeen: true));
+        loading = true;
+        try
+        {
+            CurrentOrder = null; SelectedQuote = CashQuote = InvoiceQuote = CardQuote = null; PrintModel = null;
+            draftVehicleId = draftCustomerId = null; draftPlate = draftCustomerName = draftVehicleInfo = "";
+            displayedVehicle = null; nextAdditionId = 1; partsPage = 1; partsTotal = 0; orderPage = 1; dirty = false;
+            Lines.Clear(); Additions.Clear(); Payments.Clear(); RecommendedParts.Clear(); SuggestedParts.Clear();
+            HistoryOrders.Clear(); Ownerships.Clear(); VehicleReminders.Clear(); OtherVehicles.Clear(); TransferCustomers.Clear();
+            SelectedVehicle = SelectedOtherVehicle = null; SelectedHistoryOrder = null;
+            SelectedCatalogItem = null; SelectedLine = null; SelectedAddition = null; SelectedTransferCustomer = null;
+            VehicleInfo = "請先搜尋並選取車輛"; OwnerContact = ""; Odometer = "里程待確認";
+            Number = Diagnosis = RepairDescription = ExpiresOn = PromisedDeliveryOn = "";
+            VehicleVin = VehicleMake = VehicleModel = VehicleYear = VehicleColor = "";
+            TransferQuery = TransferDate = TransferCustomerId = "";
+            Query = CatalogQuery = PartsQuery = PartsStatus = ""; CatalogKind = "全部";
+            Discount = "0"; SignatureLabel = "客人授權簽名";
+            AdditionalNotice = "施工中可能發現額外項目，未經同意不施工";
+            IssueInvoice = false; PaymentMethod = "現金"; PaymentAmount = "";
+            PrintKind = "Estimate"; PaidText = "尚無收款"; DueText = "尚未試算";
+            importReady = false; ImportConfirmed = false; ImportFolder = "";
+            ImportSummary = "尚未演練"; ImportNextStep = "選擇來源資料夾後執行演練。";
+            SelectedTab = 0;
+        }
+        finally { loading = false; dirty = false; }
+        Notify(nameof(DraftVehicle)); Notify(nameof(DraftVehicleInfo)); Notify(nameof(Editable));
+        foreach (var command in commands) command.Refresh();
+        await InitializeAsync();
+        Message = $"資料已清空，可匯入自家資料。清空前備份保留在：{backup}";
     }
     public Task AddCatalogAsync()
     {
@@ -571,8 +633,7 @@ public sealed class WorkspaceV02ViewModel : Observable
     public async Task AddCatalogWithPartsAsync()
     {
         var item = SelectedCatalogItem ?? throw new ArgumentException("請先選取目錄項目");
-        var ids = await service.GetSuggestedPartIdsAsync(item.Id);
-        var parts = item.Kind == "項目" ? (await AllPartsAsync()).Where(p => ids.Contains(p.Id)).ToArray() : [];
+        var parts = item.Kind == "項目" ? await service.GetSuggestedPartsAsync(item.Id) : [];
         AddCatalogRow(item);
         foreach (var part in parts) AddCatalogRow(part);
         SelectedTab = 2;

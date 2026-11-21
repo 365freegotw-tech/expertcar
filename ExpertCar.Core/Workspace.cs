@@ -6,7 +6,7 @@ public sealed record CustomerEditor(long? Id, string Name, string? Phone, string
 public sealed record VehicleEditor(long? Id, long CustomerId, string Plate, string? Model, long? OdometerKm, DateOnly? MaintenanceDate, long? MaintenanceKm, DateOnly? InspectionDate);
 public sealed record CatalogRow(long Id, string Kind, string Code, string Name, string Unit, long PriceMinor)
 {
-    public string Price => (PriceMinor / 100m).ToString("N2", System.Globalization.CultureInfo.CurrentCulture);
+    public string Price => (PriceMinor / 100m).ToString(PriceMinor % 100 == 0 ? "N0" : "N2", System.Globalization.CultureInfo.CurrentCulture);
 }
 public sealed record CatalogEditor(long? Id, string Kind, string Code, string Name, string Unit, long PriceMinor);
 public sealed record ShopSettings(string Name, string Contact, int ReminderDays, decimal CardFeePercent, decimal TaxPercent,

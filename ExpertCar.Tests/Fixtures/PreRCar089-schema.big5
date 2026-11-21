@@ -1,0 +1,24 @@
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding ISO-8859-1
+
+CREATE TABLE `PreRCarFix`
+ (
+	`估價單號`			varchar (50), 
+	`車牌號碼`			varchar (50), 
+	`估價日期`			varchar (50), 
+	`總計`			varchar (50), 
+	`估價金額`			varchar (50)
+);
+
+-- CREATE INDEXES ...
+
+
+-- CREATE Relationships ...
+-- relationships are not implemented for mysql

@@ -1,6 +1,7 @@
 using ExpertCar.Data;
 using ExpertCar.Import;
 using Microsoft.Data.Sqlite;
+using System.IO.Compression;
 
 namespace ExpertCar.Tests;
 
@@ -88,6 +89,48 @@ public sealed class ImportEngineTests
         var paths = temp.CopySources(includeMdb: false);
         using var plan = await new ImportEngine().PreviewAsync(paths, temp.Db);
         Assert.Equal(new ImportCounts(2, 0, 2, 0), plan.Counts);
+        Assert.False(File.Exists(temp.Db));
+    }
+
+    [MdbToolsFact]
+    public async Task V02_file_with_unrecognized_table_stops_without_profile_fallback()
+    {
+        foreach (var (fileName, table) in new[] { ("Item.MDB", "Item"), ("PreRCar089.MDB", "PreRCarFix") })
+        {
+            using var temp = new TempFiles();
+            var file = Path.Combine(temp.Directory, fileName);
+            using (var archive = ZipFile.OpenRead(Fixture("supercar-v02.zip")))
+                archive.GetEntry("Base.mdb")!.ExtractToFile(file);
+            var error = await Assert.ThrowsAsync<InvalidDataException>(() => new ImportEngine().PreviewAsync([file], temp.Db));
+            Assert.Contains(fileName, error.Message);
+            Assert.Contains("缺少表 " + table, error.Message);
+            Assert.False(File.Exists(temp.Db));
+        }
+    }
+
+    [Fact]
+    public void Discover_source_files_returns_all_v02_files_instead_of_legacy_subset()
+    {
+        using var temp = new TempFiles();
+        ZipFile.ExtractToDirectory(Fixture("supercar-v02.zip"), temp.Directory);
+        var discovered = ImportEngine.DiscoverSourceFiles(temp.Directory).Select(Path.GetFileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        Assert.Equal(11, discovered.Count);
+        Assert.Contains("RCar089.MDB", discovered);
+        Assert.Contains("PreRCar089.MDB", discovered);
+        Assert.Contains("PreSCar089.MDB", discovered);
+    }
+
+    [MdbToolsFact]
+    public async Task Ambiguous_base_file_stops_before_customer_profile_and_writes_diagnostic()
+    {
+        using var temp = new TempFiles();
+        var file = Path.Combine(temp.Directory, "Base.mdb");
+        using (var archive = ZipFile.OpenRead(Fixture("supercar-v02.zip")))
+            archive.GetEntry("Base.mdb")!.ExtractToFile(file);
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => new ImportEngine().PreviewAsync([file], temp.Db));
+        Assert.Contains("Base.mdb 無法辨識", error.Message);
+        Assert.Contains("欄位結構", error.Message);
+        Assert.Contains("來源檔：Base.mdb", File.ReadAllText(Path.Combine(temp.Directory, "import-schema-diagnostic.txt")));
         Assert.False(File.Exists(temp.Db));
     }
 

@@ -24,6 +24,24 @@ public sealed class V02ContractTests
     }
 
     [Fact]
+    public void InvoiceOn105RoundsTaxToWholeDollarAndCash110Settles()
+    {
+        var quote = CheckoutPricing.Calculate([new ChargeLine(10500)], 0, new CheckoutOptions(true, false));
+        Assert.Equal(500, quote.TaxMinor);
+        Assert.Equal(11000, quote.TotalMinor);
+        Assert.Equal(0, CheckoutPricing.Remaining(quote.TotalMinor, [], 11000));
+    }
+
+    [Fact]
+    public void InvoiceAndCardOn5000StillTotal5408()
+    {
+        var quote = CheckoutPricing.Calculate([new ChargeLine(500000)], 0, new CheckoutOptions(true, true, true, 0.05m, 0.03m));
+        Assert.Equal(25000, quote.TaxMinor);
+        Assert.Equal(15800, quote.CardSurchargeMinor);
+        Assert.Equal(540800, quote.TotalMinor);
+    }
+
+    [Fact]
     public void UnapprovedAdditionalWorkIsExcludedAndDiscountPrecedesTax()
     {
         var lines = new[] { new ChargeLine(500000), new ChargeLine(100000, true, false) };

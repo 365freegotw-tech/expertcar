@@ -86,6 +86,15 @@ public partial class SqliteV02Service
         return Task.FromResult<IReadOnlyList<long>>(ids);
     }
 
+    public Task<IReadOnlyList<CatalogRow>> GetSuggestedPartsAsync(long serviceItemId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested(); using var db = OpenV02();
+        using var cmd = Cmd(db, null, "SELECT p.id,'零件',p.code,p.name,coalesce(p.unit,''),p.default_price_minor FROM service_parts sp JOIN parts p ON p.id=sp.part_id WHERE sp.service_id=$id AND sp.default_use=1 ORDER BY sp.line_no", ("$id", serviceItemId));
+        var rows = new List<CatalogRow>(); using var reader = cmd.ExecuteReader();
+        while (reader.Read()) rows.Add(new(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4), reader.GetInt64(5)));
+        return Task.FromResult<IReadOnlyList<CatalogRow>>(rows);
+    }
+
     public Task SaveSuggestedPartIdsAsync(long serviceItemId, IReadOnlyList<long> partIds, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested(); using var db = OpenV02(); using var tx = db.BeginTransaction();

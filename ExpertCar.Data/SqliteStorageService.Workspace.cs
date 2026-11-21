@@ -9,14 +9,40 @@ public partial class SqliteStorageService
 {
     public Task<string> CreateBackupAsync(CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        using var db = Open();
         var directory = Path.Combine(Path.GetDirectoryName(_databasePath)!, "backups");
+        return CreateBackupToAsync(directory, cancellationToken);
+    }
+
+    public Task<string> CreateBackupToAsync(string directory, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (string.IsNullOrWhiteSpace(directory)) throw new ArgumentException("請選擇備份資料夾", nameof(directory));
         Directory.CreateDirectory(directory);
-        var path = Path.Combine(directory, $"expertcar-manual-{DateTimeOffset.Now:yyyyMMddHHmmss}-{Guid.NewGuid():N}.db");
+        var path = Path.Combine(directory, $"ExpertCar-備份-{DateTimeOffset.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.db");
+        using var db = Open();
         using var destination = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString());
         destination.Open(); db.BackupDatabase(destination);
         return Task.FromResult(path);
+    }
+
+    public async Task ResetToEmptyAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var temporary = _databasePath + ".reset-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            await new SqliteStorageService(temporary).InitializeAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            using (var db = Open())
+            using (var command = db.CreateCommand())
+            {
+                command.CommandText = "PRAGMA journal_mode=DELETE";
+                if (!string.Equals(command.ExecuteScalar() as string, "delete", StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("資料仍在使用中，無法安全清空");
+            }
+            File.Move(temporary, _databasePath, true);
+        }
+        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
     public Task<IReadOnlyList<CustomerRow>> SearchCustomersAsync(string query, CancellationToken cancellationToken = default)

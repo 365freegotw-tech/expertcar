@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private readonly IStorageService storage;
     private readonly HashSet<ValidationError> inputErrors = [];
     private readonly DispatcherTimer catalogDebounce = new() { Interval = TimeSpan.FromMilliseconds(300) };
+    private readonly DispatcherTimer partsDebounce = new() { Interval = TimeSpan.FromMilliseconds(300) };
     public MainWindow(WorkspaceV02ViewModel viewModel, IStorageService storage)
     {
         InitializeComponent(); this.storage = storage; this.viewModel = viewModel; DataContext = viewModel;
@@ -39,8 +40,14 @@ public partial class MainWindow : Window
             if (viewModel.Busy) { catalogDebounce.Start(); return; }
             await viewModel.SearchCatalogCommand.ExecuteAsync();
         };
+        partsDebounce.Tick += async (_, _) =>
+        {
+            partsDebounce.Stop();
+            if (viewModel.Busy) { partsDebounce.Start(); return; }
+            await viewModel.SearchPartsCommand.ExecuteAsync();
+        };
         viewModel.PropertyChanged += ViewModel_PropertyChanged;
-        Closed += (_, _) => { catalogDebounce.Stop(); viewModel.PropertyChanged -= ViewModel_PropertyChanged; };
+        Closed += (_, _) => { catalogDebounce.Stop(); partsDebounce.Stop(); viewModel.PropertyChanged -= ViewModel_PropertyChanged; };
     }
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -75,6 +82,10 @@ public partial class MainWindow : Window
     { if (DataContext is null) return; catalogDebounce.Stop(); catalogDebounce.Start(); }
     private async void Catalog_KeyDown(object sender, KeyEventArgs e)
     { if (e.Key == Key.Enter) { e.Handled = true; catalogDebounce.Stop(); await viewModel.SearchCatalogCommand.ExecuteAsync(); } }
+    private void PartsQuery_Changed(object sender, TextChangedEventArgs e)
+    { if (DataContext is null) return; partsDebounce.Stop(); partsDebounce.Start(); }
+    private async void Parts_KeyDown(object sender, KeyEventArgs e)
+    { if (e.Key == Key.Enter) { e.Handled = true; partsDebounce.Stop(); await viewModel.SearchPartsCommand.ExecuteAsync(); } }
     private async void Catalog_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (DataContext is not null) await viewModel.GuardAsync(viewModel.SuggestPartsAsync);
@@ -89,10 +100,42 @@ public partial class MainWindow : Window
         var ids = SuggestedPartsGrid.SelectedItems.Cast<CatalogRow>().Select(p => p.Id).ToArray();
         await viewModel.GuardAsync(() => viewModel.SaveSuggestedPartsAsync(ids));
     }
+    private async void RemoveSuggestedPart_Click(object sender, RoutedEventArgs e)
+    {
+        if (RecommendedPartsList.SelectedItem is not CatalogRow row) { viewModel.Message = "請先選取要移除的建議零件"; return; }
+        if (viewModel.RecommendedParts.Count == 1 &&
+            MessageBox.Show(this, "這是最後一顆建議零件。移除後此項目將沒有建議搭配，確定嗎？", "確認清空建議搭配", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return;
+        await viewModel.GuardAsync(() => viewModel.RemoveSuggestedPartAsync(row.Id));
+    }
     private void ChooseImport_Click(object sender, RoutedEventArgs e)
     {
         var dialog = new OpenFolderDialog { Title = "選擇店家授權的 MDB／DBF 來源資料夾" };
         if (dialog.ShowDialog(this) == true) viewModel.ImportFolder = dialog.FolderName;
+    }
+    private async void BackupData_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFolderDialog { Title = "選擇備份要存放的資料夾" };
+        if (dialog.ShowDialog(this) == true) await viewModel.GuardAsync(() => viewModel.BackupToAsync(dialog.FolderName));
+    }
+    private async void ClearData_Click(object sender, RoutedEventArgs e) => await viewModel.GuardAsync(() => viewModel.ClearAllDataAsync(
+        () => MessageBox.Show(this, "已自動備份目前資料。確定要清空所有客戶、車輛、工單與設定嗎？", "第一次確認", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes,
+        AskClearWord));
+    private string? AskClearWord()
+    {
+        var dialog = new Window { Title = "第二次確認", Owner = this, Width = 430, Height = 210, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize };
+        var panel = new StackPanel { Margin = new Thickness(20) };
+        panel.Children.Add(new TextBlock { Text = "請輸入「清空」兩個字，再按確認。所有資料將重新開始。", TextWrapping = TextWrapping.Wrap });
+        var input = new TextBox { Margin = new Thickness(0, 12, 0, 12), MinHeight = 38 };
+        panel.Children.Add(input);
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+        var cancel = new Button { Content = "取消", MinWidth = 90, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
+        var confirm = new Button { Content = "確認清空", MinWidth = 100, IsDefault = true };
+        confirm.Click += (_, _) => { dialog.DialogResult = true; dialog.Close(); };
+        buttons.Children.Add(cancel); buttons.Children.Add(confirm); panel.Children.Add(buttons);
+        dialog.Content = panel;
+        dialog.Loaded += (_, _) => input.Focus();
+        return dialog.ShowDialog() == true ? input.Text : null;
     }
     private void VerifyImport_Click(object sender, RoutedEventArgs e) { viewModel.SelectedTab = 0; QuickSearchBox.Focus(); }
     private void Print_Click(object sender, RoutedEventArgs e) => Print(false);

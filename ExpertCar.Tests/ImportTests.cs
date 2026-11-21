@@ -48,6 +48,88 @@ public sealed class ImportTests
         Assert.Equal("2024-11-20", rows[2].Values["DATE_TEXT"]);
     }
 
+    [Fact]
+    public void CrLfAndTypeAliasKeepMdbSchemaFingerprint()
+    {
+        const string ddl = "CREATE TABLE `CUSTOMER`\n (\n `NAME` varchar (50),\n `CAR_ID` varchar (50)\n);\n";
+        var unix = MdbLegacySource.ParseColumns(ddl);
+        var windows = MdbLegacySource.ParseColumns(ddl.Replace("\n", "\r\n"));
+        Assert.Equal(unix, windows);
+        var expected = SchemaFingerprint.Compute([("CUSTOMER", (IEnumerable<LegacyColumn>)unix)]);
+        var actualColumns = (IEnumerable<LegacyColumn>)[new(" NAME\r", "NVARCHAR\r", 50), new(" CAR_ID ", "VARCHAR", 50)];
+        var actual = SchemaFingerprint.Compute([(" CUSTOMER\r ", actualColumns)]);
+        Assert.True(expected == actual, $"Parsed: {string.Join(";", unix.Select(c => c.ToString()))}; supplied: {string.Join(";", actualColumns.Select(c => c.ToString()))}");
+    }
+
+    [Theory]
+    [InlineData("PreRCar089", "PreRCarFix", "8992d072341836fcba9ceec1a7abdcc4757ca5581fe9102266fdfa1e62ea0de2", 5, "T00-0001")]
+    [InlineData("PreSCar089", "PreSCarFix", "f08829f60b31066955552f1f32beb0a319e9528b91c5e62d3440112b34bc964f", 7, "P1")]
+    public void Big5_mdbtools_bytes_decode_schema_and_export(string file, string table, string approved, int count, string second)
+    {
+        var ddl = MdbLegacySource.DecodeOutput(File.ReadAllBytes(Fixture(file + "-schema.big5")));
+        var columns = MdbLegacySource.ParseColumns(ddl);
+        Assert.Equal(count, columns.Length);
+        Assert.Contains("估價單號", columns.Select(c => c.Name));
+        Assert.Equal(approved, SchemaFingerprint.Compute([(table, (IEnumerable<LegacyColumn>)columns)]));
+        var csv = MdbLegacySource.DecodeOutput(File.ReadAllBytes(Fixture(file + "-export.big5")));
+        using var reader = new StringReader(csv);
+        Assert.Equal(columns.Select(c => c.Name), MdbLegacySource.ParseCsv(reader.ReadLine()!));
+        var first = MdbLegacySource.ParseCsv(reader.ReadLine()!);
+        Assert.Equal(count, first.Count);
+        Assert.Equal(second, first[1]);
+    }
+
+    [MdbToolsFact]
+    public async Task MdbTools101SyntheticSchemaAndMismatchDiagnostic()
+    {
+        var root = Environment.GetEnvironmentVariable("EXPERTCAR_SYNTHETIC_ROOT");
+        if (root is null) return;
+        var baseFile = Path.Combine(root, "Base.mdb");
+        var tables = await new MdbLegacySource(baseFile).GetTablesAsync();
+        Assert.Equal("bf3287df03c827e42fa4a3e8144ba0b1587dab542f4a9b1f8c2f0129c78b22ab", SchemaFingerprint.Compute(tables));
+        var target = Path.Combine(Path.GetTempPath(), "expertcar-schema-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(target);
+        try
+        {
+            var profile = new CustomerVehicleImportProfile(Path.Combine(AppContext.BaseDirectory, "Rules", "customer-vehicle-v1.json"));
+            var error = await Assert.ThrowsAsync<InvalidDataException>(() => profile.PreviewAsync([baseFile], Path.Combine(target, "shop.db")));
+            Assert.Contains("Base.mdb", error.Message);
+            Assert.Contains("CUSTOMER.CAR_ID 預期 varchar(10)，實際 varchar(50)", error.Message);
+            Assert.Contains("可能是讀取工具編碼問題，請將診斷檔傳給客服", error.Message);
+            var diagnostic = File.ReadAllText(Path.Combine(target, "import-schema-diagnostic.txt"));
+            Assert.Contains("bf3287df03c827e42fa4a3e8144ba0b1587dab542f4a9b1f8c2f0129c78b22ab", diagnostic);
+            Assert.Contains("表 CUSTOMER:", diagnostic);
+            Assert.Contains("CUSTOMER.CAR_ID 預期 varchar(10)，實際 varchar(50)", diagnostic);
+        }
+        finally { Directory.Delete(target, true); }
+    }
+
+    [MdbToolsFact]
+    public async Task MdbTools101ApprovedSchemaAndCrLfMatchRule()
+    {
+        var root = Environment.GetEnvironmentVariable("EXPERTCAR_APPROVED_ROOT");
+        if (root is null) return;
+        var file = Path.Combine(root, "Base.mdb");
+        var tables = await new MdbLegacySource(file).GetTablesAsync();
+        const string approved = "73a0f385d2c6412df4cce3ffb52ea177a8170de86d2c71a742d11a57a3c6f9ca";
+        Assert.Equal(approved, SchemaFingerprint.Compute(tables));
+        var converted = new List<(string Table, IEnumerable<LegacyColumn> Columns)>();
+        foreach (var table in tables)
+        {
+            var tool = Path.Combine(Environment.GetEnvironmentVariable("EXPERTCAR_MDBTOOLS_DIR")!,
+                OperatingSystem.IsWindows() ? "mdb-schema.exe" : "mdb-schema");
+            var info = new ProcessStartInfo(tool) { RedirectStandardOutput = true, RedirectStandardError = true };
+            info.Environment["MDB_JET3_CHARSET"] = "CP950"; info.Environment["MDBICONV"] = "UTF-8";
+            foreach (var arg in new[] { "-T", table.Name, file, "mysql" }) info.ArgumentList.Add(arg);
+            using var process = Process.Start(info)!;
+            var ddl = await process.StandardOutput.ReadToEndAsync();
+            await process.StandardError.ReadToEndAsync(); await process.WaitForExitAsync();
+            Assert.Equal(0, process.ExitCode);
+            converted.Add((table.Name, MdbLegacySource.ParseColumns(ddl.Replace("\n", "\r\n"))));
+        }
+        Assert.Equal(approved, SchemaFingerprint.Compute(converted));
+    }
+
     [MdbToolsFact]
     public async Task Mdb_falls_back_to_path_when_explicit_directory_is_missing()
     {

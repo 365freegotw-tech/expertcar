@@ -9,12 +9,12 @@ public static class SchemaFingerprint
     public static string Compute(IEnumerable<(string Table, IEnumerable<LegacyColumn> Columns)> tables)
     {
         var canonical = new StringBuilder();
-        foreach (var (table, columns) in tables.OrderBy(t => t.Table, StringComparer.Ordinal))
+        foreach (var (table, columns) in tables.OrderBy(t => t.Table.Trim(), StringComparer.Ordinal))
         {
-            Append(table);
+            Append(table.Trim());
             foreach (var column in columns)
             {
-                Append(column.Name); Append(column.Type);
+                Append(column.Name.Trim()); Append(NormalizeType(column.Type));
                 Append(column.Length?.ToString() ?? "");
                 Append(column.Decimals?.ToString() ?? "");
             }
@@ -23,6 +23,13 @@ public static class SchemaFingerprint
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical.ToString()))).ToLowerInvariant();
 
         void Append(string value) => canonical.Append(value.Length).Append(':').Append(value);
+    }
+
+    private static string NormalizeType(string type)
+    {
+        var value = type.Trim();
+        if (value.Length == 1) return value.ToUpperInvariant(); // DBF field codes are case-sensitive in approved fingerprints.
+        return value.ToLowerInvariant() switch { "nvarchar" or "character varying" => "varchar", var normalized => normalized };
     }
 
     public static string Compute(IEnumerable<LegacyTable> tables) =>

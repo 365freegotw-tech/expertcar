@@ -189,11 +189,11 @@ public partial class SqliteV02Service(string databasePath) : SqliteStorageServic
     public Task<CatalogPage> SearchCatalogAsync(CatalogSearchQuery query, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested(); if(query.Page<1 || query.PageSize is <1 or >100) throw new ArgumentOutOfRangeException(nameof(query));
-        using var db=OpenV02(); var where=" WHERE ($kind IS NULL OR kind=$kind) AND ($empty=1 OR code LIKE $like ESCAPE '\\' OR name LIKE $like ESCAPE '\\')";
+        using var db=OpenV02(); var where=" WHERE ($kind IS NULL OR $kind='' OR $kind='全部' OR kind=$kind) AND ($empty=1 OR code LIKE $like ESCAPE '\\' OR name LIKE $like ESCAPE '\\')";
         var cte="WITH catalog AS (SELECT id,'項目' kind,code,name,unit,default_labor_minor price FROM service_items UNION ALL SELECT id,'零件',code,name,coalesce(unit,''),default_price_minor FROM parts)";
         var args=new (string,object?)[]{("$kind",query.Kind),("$empty",string.IsNullOrWhiteSpace(query.Text)?1:0),("$like","%"+Escape(query.Text.Trim())+"%")};
         var total=(int)Scalar(db,null,cte+" SELECT count(*) FROM catalog"+where,args);
-        using var cmd=Cmd(db,null,cte+" SELECT id,kind,code,name,unit,price FROM catalog"+where+" ORDER BY kind,code,id LIMIT $limit OFFSET $offset",args.Concat(new (string,object?)[]{("$limit",query.PageSize),("$offset",checked((query.Page-1)*query.PageSize))}).ToArray());
+        using var cmd=Cmd(db,null,cte+" SELECT id,kind,code,name,unit,price FROM catalog"+where+" ORDER BY CASE WHEN kind='項目' THEN 0 ELSE 1 END,code,id LIMIT $limit OFFSET $offset",args.Concat(new (string,object?)[]{("$limit",query.PageSize),("$offset",checked((query.Page-1)*query.PageSize))}).ToArray());
         var rows=new List<CatalogRow>(); using var r=cmd.ExecuteReader(); while(r.Read()) rows.Add(new(r.GetInt64(0),r.GetString(1),r.GetString(2),r.GetString(3),r.GetString(4),r.GetInt64(5)));
         return Task.FromResult(new CatalogPage(rows,total,query.Page,query.PageSize));
     }

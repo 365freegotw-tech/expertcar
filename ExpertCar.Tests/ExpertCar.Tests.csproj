@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Fixtures/synthetic-*.mdb;Fixtures/synthetic-*.dbf;Fixtures/supercar-v02.zip" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Fixtures/synthetic-*.mdb;Fixtures/synthetic-*.dbf;Fixtures/supercar-v02.zip;Fixtures/*-schema.big5;Fixtures/*-export.big5" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

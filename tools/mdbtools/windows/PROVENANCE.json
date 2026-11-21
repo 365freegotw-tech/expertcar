@@ -18,7 +18,7 @@
   "clean_builds_matching_sha256": 2,
   "executables": {
     "mdb-export.exe": {
-      "sha256": "bd675b1b8e45cfc35d853d812330fe0bb3c4c545f4fdadf206ef19cfd22ff9ae",
+      "sha256": "8f0dd238b68c027f8bc585d294be78e80111ce5dfb8aab3cbb96a64fdd9b047b",
       "imports": [
         "KERNEL32.dll",
         "msvcrt.dll"
@@ -26,7 +26,7 @@
       "pe_timestamp": 1734307200
     },
     "mdb-schema.exe": {
-      "sha256": "f5429524f801176f62387bd6e484dba7b111faf70eb194190ef04586b7862342",
+      "sha256": "1ca5c062011fe34b8a343afcbd0ea8b9798334ed418e1ee6e1d7e6fccd2b0785",
       "imports": [
         "KERNEL32.dll",
         "msvcrt.dll"
@@ -34,12 +34,19 @@
       "pe_timestamp": 1734307200
     },
     "mdb-tables.exe": {
-      "sha256": "8b2df2dd592b85c36e100641cec043c0cb56e7808e9f8b94424e320396367563",
+      "sha256": "0daada29be55550e35f442ab21e917e0cb56cc7cc21730a81b2792e90dc734f7",
       "imports": [
         "KERNEL32.dll",
         "msvcrt.dll"
       ],
       "pe_timestamp": 1734307200
     }
+  },
+  "verification": {
+    "configure": "HAVE_ICONV_H=1; LIBS includes -liconv; static GNU libiconv 1.18",
+    "symbols": "unstripped mdb-schema.exe: libiconv_open and mdb_iconv_init (x86_64-w64-mingw32-nm)",
+    "strings": "all three stripped EXEs contain MDBICONV and MDB_JET3_CHARSET",
+    "native_check": "same MDBTools 1.0.1 build flags on Linux: mdb-schema -T PreRCarFix emits encoding UTF-8 and Chinese field names",
+    "windows_runtime": "pending site-owner run; Wine unavailable on build host"
   }
 }

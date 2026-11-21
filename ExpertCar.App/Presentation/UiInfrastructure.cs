@@ -35,7 +35,8 @@ public sealed class AsyncCommand(Func<Task> action, Func<bool>? canExecute = nul
 
 public static class UiText
 {
-    public static string Money(long minor) => $"NT$ {minor / 100m:N2}";
+    public static string Amount(long minor) => (minor / 100m).ToString(minor % 100 == 0 ? "N0" : "N2");
+    public static string Money(long minor) => $"NT$ {Amount(minor)}";
     public static DateTimeOffset Now => TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow,
         TimeZoneInfo.FindSystemTimeZoneById(OperatingSystem.IsWindows() ? "Taipei Standard Time" : "Asia/Taipei"));
     public static string Status(WorkOrderStatus status) => status switch

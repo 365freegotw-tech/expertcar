@@ -42,6 +42,8 @@ public interface IStorageService
     Task<ShopSettings> GetShopSettingsAsync(CancellationToken cancellationToken = default);
     Task SaveShopSettingsAsync(ShopSettings settings, CancellationToken cancellationToken = default);
     Task<string> CreateBackupAsync(CancellationToken cancellationToken = default);
+    Task<string> CreateBackupToAsync(string directory, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    Task ResetToEmptyAsync(CancellationToken cancellationToken = default) => throw new NotSupportedException();
     Task<ImportPreview> PreviewImportAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken = default);
     Task<ImportResult> CommitImportAsync(CancellationToken cancellationToken = default);
     Task<long> CreateCustomerWithVehicleAsync(CustomerDraft customer, VehicleDraft vehicle,

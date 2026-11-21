@@ -92,7 +92,7 @@ public sealed record PrintDocumentModel(string Title, string ShopHeader, string 
                 description += $"　工時：{hours:0.####} 小時 × {price / 100m:0.##}";
                 quantity = $"{hours:0.####} 小時";
             }
-            var values = new[] { UiText.Category(detail.Category), description, quantity, $"{price / 100m:N2}", $"{line.TotalMinor / 100m:N2}" };
+            var values = new[] { UiText.Category(detail.Category), description, quantity, UiText.Amount(price), UiText.Amount(line.TotalMinor) };
             var fields = values.Select((value, column) => Wrap(value,
                 Math.Max(1, (int)((layout.ColumnWidths[column] - 8) / layout.FontSize))).ToArray()).ToArray();
             var count = fields.Max(f => f.Length);

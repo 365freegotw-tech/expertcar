@@ -204,9 +204,7 @@ public partial class LegacyWindow : Window
     {
         if (!Directory.Exists(SourceFolderBox.Text)) throw new ArgumentException("請先選擇來源資料夾");
         var folder = SourceFolderBox.Text;
-        var paths = new[] { "Base.mdb", "CUSTNAME.DBF", "CUSTPHON.DBF" }
-            .Select(name => new[] { Path.Combine(folder, name), Path.Combine(folder, name.EndsWith("mdb", StringComparison.OrdinalIgnoreCase) ? "MDB" : "DBF", name) })
-            .Select(candidates => candidates.FirstOrDefault(File.Exists)).Where(path => path is not null).Cast<string>().ToArray();
+        var paths = ImportEngine.DiscoverSourceFiles(folder);
         if (paths.Length == 0) throw new ArgumentException("找不到支援的 Base.mdb 或 CUSTNAME／CUSTPHON.DBF");
         if (paths.Any(p => p.EndsWith(".mdb", StringComparison.OrdinalIgnoreCase)) && !MdbToolsAvailable())
             throw new InvalidOperationException("匯入 MDB 需安裝讀取工具 MDBTools。可先選只有 DBF 的資料夾匯入。");

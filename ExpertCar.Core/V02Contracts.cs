@@ -43,6 +43,7 @@ public interface IExpertCarV02Service
     Task<IReadOnlyList<WorkOrderListRow>> GetTodayDeliveryOrdersAsync(DateOnly today, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     Task<ReceivableResult?> GetReceivableAsync(long workOrderId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     Task<IReadOnlyList<long>> GetSuggestedPartIdsAsync(long serviceItemId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
+    Task<IReadOnlyList<CatalogRow>> GetSuggestedPartsAsync(long serviceItemId, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     Task SaveSuggestedPartIdsAsync(long serviceItemId, IReadOnlyList<long> partIds, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     /// <summary>依車牌正規化鍵、客戶姓名或電話快查，限制回傳筆數。</summary>
     Task<IReadOnlyList<VehicleQuickResult>> QuickFindVehiclesAsync(string query, int limit = 20, CancellationToken cancellationToken = default);

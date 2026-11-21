@@ -19,6 +19,27 @@ public sealed class V02UiTests
         Assert.False(f.Vm.Busy);
     }
     [Fact]
+    public async Task DefaultCatalogListsItemsAndPartsAndCandidatesUsePages()
+    {
+        var f = new UiFixture(); await f.Vm.InitializeAsync();
+        Assert.Equal("全部", f.Vm.CatalogKind);
+        Assert.Contains(f.Vm.Catalog, row => row.Kind == "項目");
+        await f.Vm.NextCatalogCommand.ExecuteAsync();
+        Assert.Contains(f.Vm.Catalog, row => row.Kind == "零件");
+        await f.Vm.PreviousCatalogCommand.ExecuteAsync();
+        f.Vm.SelectedCatalogItem = f.Vm.Catalog.First(row => row.Kind == "項目");
+        await f.Vm.SuggestPartsAsync();
+        Assert.Single(f.Vm.SuggestedParts);
+        Assert.Contains("共 1 筆", f.Vm.PartsStatus);
+    }
+    [Fact]
+    public void WholeDollarDisplaysWithoutDecimalZeros()
+    {
+        Assert.Equal("NT$ 3,785", UiText.Money(378500));
+        Assert.Equal("NT$ 110.25", UiText.Money(11025));
+        Assert.Equal("200", new CatalogRow(1, "零件", "P", "合成零件", "個", 20000).Price);
+    }
+    [Fact]
     public async Task SearchHistoryAndOtherCarsBindCompleteVehicleData()
     {
         var f = new UiFixture(); f.Vm.Query = "TEST1234";
@@ -331,7 +352,7 @@ public sealed class V02UiTests
         {
             var line = Assert.Single(details, r => r.Text.Contains($"明細-{i:D3}"));
             Assert.Equal("零件", line.Category); Assert.Contains($"P-{i:D3}", line.Text);
-            Assert.Equal($"{i:N2}", line.Amount);
+            Assert.Equal($"{i:N0}", line.Amount);
         }
         var portrait = PrintDocumentModel.Build(await f.Service.CreatePrintSnapshotAsync(f.Vm.CurrentOrder!.Id, kind), "", "",
             f.Vm.BuildDraft(), [], "", "", orientation: PrintOrientation.Portrait);
@@ -566,6 +587,7 @@ public sealed class V02UiTests
         public Task<IReadOnlyList<WorkOrderListRow>> GetTodayDeliveryOrdersAsync(DateOnly today, CancellationToken ct = default) => inner.GetTodayDeliveryOrdersAsync(today, ct);
         public Task<ReceivableResult?> GetReceivableAsync(long id, CancellationToken ct = default) => inner.GetReceivableAsync(id, ct);
         public Task<IReadOnlyList<long>> GetSuggestedPartIdsAsync(long id, CancellationToken ct = default) => inner.GetSuggestedPartIdsAsync(id, ct);
+        public Task<IReadOnlyList<CatalogRow>> GetSuggestedPartsAsync(long id, CancellationToken ct = default) => inner.GetSuggestedPartsAsync(id, ct);
         public Task SaveSuggestedPartIdsAsync(long id, IReadOnlyList<long> ids, CancellationToken ct = default) => inner.SaveSuggestedPartIdsAsync(id, ids, ct);
         public Task<VehicleHistory?> GetVehicleHistoryAsync(long id, CancellationToken ct = default) => inner.GetVehicleHistoryAsync(id, ct);
         public Task<WorkOrderDetail?> GetWorkOrderAsync(long id, CancellationToken ct = default) => inner.GetWorkOrderAsync(id, ct);

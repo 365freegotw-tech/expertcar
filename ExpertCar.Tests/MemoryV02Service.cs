@@ -63,6 +63,9 @@ public sealed class MemoryV02Service : IExpertCarV02Service
                 _vehicles.GetValueOrDefault(o.Draft.VehicleId)?.Vehicle.Plate ?? "", today)).ToArray());
     public Task<IReadOnlyList<long>> GetSuggestedPartIdsAsync(long id, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<long>>(_suggestedParts.GetValueOrDefault(id) ?? []);
+    public Task<IReadOnlyList<CatalogRow>> GetSuggestedPartsAsync(long id, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<CatalogRow>>((_suggestedParts.GetValueOrDefault(id) ?? [])
+            .Select(partId => _catalog.FirstOrDefault(p => p.Kind == "零件" && p.Id == partId)).OfType<CatalogRow>().ToArray());
     public Task SaveSuggestedPartIdsAsync(long id, IReadOnlyList<long> partIds, CancellationToken cancellationToken = default)
     { _suggestedParts[id] = partIds.Distinct().ToArray(); return Task.CompletedTask; }
 
@@ -111,7 +114,7 @@ public sealed class MemoryV02Service : IExpertCarV02Service
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (query.Page < 1 || query.PageSize is < 1 or > 100) throw new ArgumentOutOfRangeException(nameof(query));
-        var rows = _catalog.Where(item => (string.IsNullOrWhiteSpace(query.Kind) || item.Kind == query.Kind) &&
+        var rows = _catalog.Where(item => (string.IsNullOrWhiteSpace(query.Kind) || query.Kind == "全部" || item.Kind == query.Kind) &&
             (string.IsNullOrWhiteSpace(query.Text) || item.Code.Contains(query.Text, StringComparison.OrdinalIgnoreCase) ||
              item.Name.Contains(query.Text, StringComparison.OrdinalIgnoreCase))).ToArray();
         return Task.FromResult(new CatalogPage(rows.Skip(checked((query.Page - 1) * query.PageSize)).Take(query.PageSize).ToArray(),

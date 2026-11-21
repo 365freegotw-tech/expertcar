@@ -1,6 +1,7 @@
 using ExpertCar.App.Presentation;
 using ExpertCar.Core;
 using ExpertCar.Import;
+using System.Diagnostics;
 
 namespace ExpertCar.Verification;
 
@@ -30,6 +31,7 @@ public static class V02Workflow
         vm.ImportConfirmed = true;
         Require(vm.CommitImportCommand.CanExecute(null), "演練應有可新增資料");
         Require(vm.ImportProblems.Count > 0, "待確認清單");
+        var initialReady = vm.ImportSources.Sum(x => x.Imported);
         log(vm.ImportSummary);
         foreach (var count in vm.ImportSources) log($"source {count.SourceFile}/{count.SourceTable} scanned={count.Scanned} ready={count.Imported} skipped={count.Skipped} pending={count.Pending} failed={count.Failed}");
         await Execute(vm, vm.CommitImportCommand);
@@ -38,6 +40,18 @@ public static class V02Workflow
         await Execute(vm, vm.DrillImportCommand);
         Require(vm.ImportSummary.Contains("成功 0") && !vm.CommitImportCommand.CanExecute(null), "重跑零新增");
         log("replay " + vm.ImportSummary);
+
+        await vm.SearchCatalogAsync(true);
+        Require(vm.CatalogKind == "全部" && vm.Catalog.Count > 0, "預設目錄有資料");
+        var itemPage = await service.SearchCatalogAsync(new("", "項目", 1, 30));
+        var item = itemPage.Items.First();
+        vm.SelectedCatalogItem = item;
+        var watch = Stopwatch.StartNew();
+        await vm.SuggestPartsAsync();
+        watch.Stop();
+        Require(vm.RecommendedParts.Count > 0 && vm.SuggestedParts.Count <= 30, "建議零件直查與候選分頁");
+        log($"catalog default_total={((await service.SearchCatalogAsync(new("", null))).TotalCount)} selected_item_ms={watch.Elapsed.TotalMilliseconds:F1} recommended={vm.RecommendedParts.Count} candidate_page={vm.SuggestedParts.Count}");
+        Require(watch.Elapsed.TotalMilliseconds < 300, "點項目顯示需低於 300ms");
 
         vm.Query = "T00-0001";
         await Execute(vm, vm.SearchCommand);
@@ -56,6 +70,11 @@ public static class V02Workflow
         vm.CardSurchargeEnabled = true; vm.CardPercent = 3; vm.TaxPercent = 5;
         await Execute(vm, vm.SaveSettingsCommand);
         await Execute(vm, vm.HistoryNewOrderCommand);
+        vm.SelectedCatalogItem = item;
+        watch.Restart(); await vm.AddCatalogWithPartsAsync(); watch.Stop();
+        Require(vm.Lines.Count == 1 + vm.RecommendedParts.Count, "帶入建議零件");
+        log($"add_item_with_parts_ms={watch.Elapsed.TotalMilliseconds:F1} lines={vm.Lines.Count}");
+        vm.Lines.Clear();
         vm.Number = "DEMO-250D-RC1";
         vm.Diagnosis = "合成測試診斷"; vm.RepairDescription = "合成測試維修";
         vm.PromisedDeliveryOn = DateOnly.FromDateTime(UiText.Now.DateTime).ToString("yyyy-MM-dd");
@@ -121,6 +140,34 @@ public static class V02Workflow
         Require(reload.Lines.Single(l => l.Category == WorkLineCategory.Outsource).Vendor == "合成外包廠商", "正式廠商欄位往返");
         Require(reload.HourlyRate == 1000 && reload.DocumentHeader == "合成示範單據", "設定存資料庫");
         log("ownership transferred=yes old_order_owner_unchanged=yes reopen_payments=2 receivable_minor=0");
+        var before = await service.GetDashboardAsync();
+        var beforeCatalog = (await service.SearchCatalogAsync(new("", null))).TotalCount;
+        var backup = await service.CreateBackupAsync();
+        Require(File.Exists(backup), "備份檔存在");
+        await vm.ClearAllDataAsync(() => true, () => "清空");
+        Require((await service.GetDashboardAsync()).CustomerCount == 0 &&
+                (await service.SearchCatalogAsync(new("", null))).TotalCount == 0, "清空後資料為零");
+        Require(!vm.Editable && vm.HistoryOrders.Count == 0 && vm.Lines.Count == 0, "清空後畫面草稿為空");
+        vm.ImportFolder = Path.GetFullPath(source);
+        await Execute(vm, vm.DrillImportCommand);
+        Require(vm.ImportSummary.Contains($"成功 {initialReady}") && vm.ImportSummary.Contains("失敗 0"), "再次匯入演練筆數");
+        vm.ImportConfirmed = true;
+        await Execute(vm, vm.CommitImportCommand);
+        vm.Query = "T00-0001"; await Execute(vm, vm.SearchCommand);
+        vm.SelectedVehicle = vm.Vehicles.Single();
+        await Execute(vm, vm.NewOrderCommand);
+        vm.Number = "DEMO-RC2-REIMPORT";
+        vm.Lines.Add(new() { Name = "重新匯入後工資", Category = WorkLineCategory.Labor, Price = 100 });
+        await Execute(vm, vm.SaveCommand);
+        Require(vm.CurrentOrder is not null, "重新匯入後開新單");
+        log($"clear_reimport_new_order imported={initialReady} failed=0 order=yes");
+        reopened.Dispose(); service.Dispose();
+        File.Copy(backup, path, true);
+        using var restored = await ExpertCarServices.OpenAsync(path);
+        var after = await restored.GetDashboardAsync();
+        var afterCatalog = (await restored.SearchCatalogAsync(new("", null))).TotalCount;
+        Require(after == before && afterCatalog == beforeCatalog, "從備份還原筆數一致");
+        log($"backup_reset_restore customers={before.CustomerCount}->{0}->{after.CustomerCount} vehicles={before.VehicleCount}->{0}->{after.VehicleCount} catalog={beforeCatalog}->{0}->{afterCatalog}");
         log("PASS App composition + ViewModel commands end-to-end");
     }
 }
