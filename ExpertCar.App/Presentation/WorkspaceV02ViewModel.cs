@@ -22,10 +22,10 @@ public sealed class WorkspaceV02ViewModel : Observable
     {
         this.service = service; this.storage = storage; this.preferences = preferences;
         SearchCommand = Command(SearchAsync);
-        OpenVehicleCommand = Command(OpenVehicleAsync, () => SelectedVehicle is not null);
+        OpenVehicleCommand = Command(OpenVehicleAsync, () => (SelectedVehicle ?? displayedVehicle) is not null);
         OpenOtherVehicleCommand = Command(() => OpenVehicleCoreAsync(SelectedOtherVehicle!), () => SelectedOtherVehicle is not null);
         HistoryNewOrderCommand = Command(() => NewOrderCoreAsync(displayedVehicle!), () => displayedVehicle is not null);
-        NewOrderCommand = Command(NewOrderAsync, () => SelectedVehicle is not null);
+        NewOrderCommand = Command(NewOrderAsync, () => (SelectedVehicle ?? displayedVehicle) is not null);
         OpenOrderCommand = Command(OpenOrderAsync, () => SelectedHistoryOrder is not null);
         SaveCommand = Command(SaveAsync, () => Editable);
         SaveQuoteCommand = Command(async () => { await QuoteAsync(); SelectedTab = 2; }, () => draftVehicleId is not null);
@@ -72,6 +72,8 @@ public sealed class WorkspaceV02ViewModel : Observable
             if (e.PropertyName == nameof(ImportFolder)) { importReady = false; ImportConfirmed = false; ImportSources.Clear(); ImportProblems.Clear(); ImportSummary = "來源已變更，請重新演練"; }
             if (e.PropertyName == nameof(CurrentOrder)) { Notify(nameof(StatusText)); Notify(nameof(Editable)); Notify(nameof(NextActionText)); }
             if (e.PropertyName is nameof(PrintOrientation) or nameof(ShopAddress) or nameof(ShopTaxId) or nameof(DocumentHeader) or nameof(ShopName) or nameof(ShopContact) or nameof(PrintKind)) PrintModel = null;
+            if (e.PropertyName == nameof(SelectedTab) && SelectedTab == 0 && SelectedVehicle is null && displayedVehicle is not null)
+                SelectedVehicle = Vehicles.FirstOrDefault(v => v.VehicleId == displayedVehicle.VehicleId);
         };
     }
     private AsyncCommand Command(Func<Task> action, Func<bool>? predicate = null)
@@ -344,11 +346,11 @@ public sealed class WorkspaceV02ViewModel : Observable
         SelectedVehicle = Vehicles.Count == 1 ? Vehicles[0] : null;
         Message = Vehicles.Count == 0 ? "找不到車輛；可到客戶維護新增後重新搜尋。" : $"找到 {Vehicles.Count} 台車（快查最多 20 筆）";
     }
-    public Task OpenVehicleAsync() => OpenVehicleCoreAsync(SelectedVehicle ?? throw new ArgumentException("請先選取車輛"));
+    public Task OpenVehicleAsync() => OpenVehicleCoreAsync(SelectedVehicle ?? displayedVehicle ?? throw new ArgumentException("請先選取車輛"));
     private async Task OpenVehicleCoreAsync(VehicleQuickResult selected)
     {
         var history = await service.GetVehicleHistoryAsync(selected.VehicleId) ?? throw new InvalidOperationException("找不到車輛履歷");
-        var v = history.Vehicle; displayedVehicle = v;
+        var v = history.Vehicle; displayedVehicle = v; SelectedVehicle = v;
         SelectedTransferCustomer = null; TransferCustomerId = ""; TransferCustomers.Clear();
         VehicleVin = v.Vin ?? ""; VehicleMake = v.Make ?? ""; VehicleModel = v.Model ?? "";
         VehicleYear = v.ModelYear?.ToString() ?? ""; VehicleColor = v.Color ?? "";
@@ -407,7 +409,7 @@ public sealed class WorkspaceV02ViewModel : Observable
         Replace(UnpaidOrders, Orders.Where(r => r.Source.DueMinor > 0 && r.Source.Status is not (WorkOrderStatus.Cancelled or WorkOrderStatus.Void)));
         foreach (var c in commands) c.Refresh();
     }
-    public Task NewOrderAsync() => NewOrderCoreAsync(SelectedVehicle ?? throw new ArgumentException("請先查車並選取車輛"));
+    public Task NewOrderAsync() => NewOrderCoreAsync(SelectedVehicle ?? displayedVehicle ?? throw new ArgumentException("請先查車並選取車輛"));
     private Task NewOrderCoreAsync(VehicleQuickResult v)
     {
         if (dirty && draftVehicleId is not null) throw new InvalidOperationException("目前工單有未儲存內容，請先儲存草稿再開新單");
@@ -537,8 +539,10 @@ public sealed class WorkspaceV02ViewModel : Observable
         var page = await service.SearchCatalogAsync(new(CatalogQuery.Trim(), CatalogKind == "全部" ? null : CatalogKind, pageNumber, 30));
         if (version != catalogVersion) return;
         catalogPage = page.Page; catalogTotal = page.TotalCount;
+        SelectedCatalogItem = null;
         Replace(Catalog, page.Items); CatalogStatus = $"共 {page.TotalCount} 筆 · 第 {page.Page} 頁";
-        SuggestedParts.Clear(); foreach (var c in commands) c.Refresh();
+        RecommendedParts.Clear(); SuggestedParts.Clear(); PartsStatus = "";
+        foreach (var c in commands) c.Refresh();
     }
     public async Task SuggestPartsAsync()
     {
@@ -594,16 +598,17 @@ public sealed class WorkspaceV02ViewModel : Observable
         {
             CurrentOrder = null; SelectedQuote = CashQuote = InvoiceQuote = CardQuote = null; PrintModel = null;
             draftVehicleId = draftCustomerId = null; draftPlate = draftCustomerName = draftVehicleInfo = "";
-            displayedVehicle = null; nextAdditionId = 1; partsPage = 1; partsTotal = 0; orderPage = 1; dirty = false;
-            Lines.Clear(); Additions.Clear(); Payments.Clear(); RecommendedParts.Clear(); SuggestedParts.Clear();
+            displayedVehicle = null; nextAdditionId = 1; catalogPage = 1; catalogTotal = 0; partsPage = 1; partsTotal = 0; orderPage = 1; dirty = false;
+            Vehicles.Clear(); Catalog.Clear(); Lines.Clear(); Additions.Clear(); Payments.Clear(); RecommendedParts.Clear(); SuggestedParts.Clear();
             HistoryOrders.Clear(); Ownerships.Clear(); VehicleReminders.Clear(); OtherVehicles.Clear(); TransferCustomers.Clear();
+            ImportSources.Clear(); ImportProblems.Clear();
             SelectedVehicle = SelectedOtherVehicle = null; SelectedHistoryOrder = null;
             SelectedCatalogItem = null; SelectedLine = null; SelectedAddition = null; SelectedTransferCustomer = null;
             VehicleInfo = "請先搜尋並選取車輛"; OwnerContact = ""; Odometer = "里程待確認";
             Number = Diagnosis = RepairDescription = ExpiresOn = PromisedDeliveryOn = "";
             VehicleVin = VehicleMake = VehicleModel = VehicleYear = VehicleColor = "";
             TransferQuery = TransferDate = TransferCustomerId = "";
-            Query = CatalogQuery = PartsQuery = PartsStatus = ""; CatalogKind = "全部";
+            Query = CatalogQuery = PartsQuery = PartsStatus = ""; CatalogKind = "全部"; CatalogStatus = "共 0 筆 · 第 1 頁";
             Discount = "0"; SignatureLabel = "客人授權簽名";
             AdditionalNotice = "施工中可能發現額外項目，未經同意不施工";
             IssueInvoice = false; PaymentMethod = "現金"; PaymentAmount = "";
@@ -689,7 +694,7 @@ public sealed class WorkspaceV02ViewModel : Observable
         Replace(ImportSources, result.Sources);
         ImportSummary = $"匯入完成：成功 {r.Success} ／ 跳過 {r.Skipped} ／ 待確認 {r.Pending} ／ 失敗 {r.Failed}；備份：{r.BackupPath ?? "無"}";
         ImportNextStep = r.Pending > 0 || r.Failed > 0 ? "請核對下方來源與問題清單；保險、驗車語意待人工確認。" : "請回首頁查車並核對履歷。";
-        importReady = false; await RefreshHomeAsync();
+        importReady = false; await RefreshHomeAsync(); await SearchCatalogAsync(true);
     }
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> values)
     { target.Clear(); foreach (var value in values) target.Add(value); }

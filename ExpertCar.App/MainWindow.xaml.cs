@@ -77,13 +77,13 @@ public partial class MainWindow : Window
     private async void WorkOrderPrint_Click(object sender, RoutedEventArgs e) => await Preview("WorkOrder");
     private async void Receipt_Click(object sender, RoutedEventArgs e) => await Preview("Receipt");
     private void CatalogQuery_Changed(object sender, TextChangedEventArgs e)
-    { if (DataContext is null) return; catalogDebounce.Stop(); catalogDebounce.Start(); }
+    { if (DataContext is null || viewModel.Busy) return; catalogDebounce.Stop(); catalogDebounce.Start(); }
     private void CatalogKind_Changed(object sender, SelectionChangedEventArgs e)
-    { if (DataContext is null) return; catalogDebounce.Stop(); catalogDebounce.Start(); }
+    { if (DataContext is null || viewModel.Busy) return; catalogDebounce.Stop(); catalogDebounce.Start(); }
     private async void Catalog_KeyDown(object sender, KeyEventArgs e)
     { if (e.Key == Key.Enter) { e.Handled = true; catalogDebounce.Stop(); await viewModel.SearchCatalogCommand.ExecuteAsync(); } }
     private void PartsQuery_Changed(object sender, TextChangedEventArgs e)
-    { if (DataContext is null) return; partsDebounce.Stop(); partsDebounce.Start(); }
+    { if (DataContext is null || viewModel.Busy) return; partsDebounce.Stop(); partsDebounce.Start(); }
     private async void Parts_KeyDown(object sender, KeyEventArgs e)
     { if (e.Key == Key.Enter) { e.Handled = true; partsDebounce.Stop(); await viewModel.SearchPartsCommand.ExecuteAsync(); } }
     private async void Catalog_SelectionChanged(object sender, SelectionChangedEventArgs e)

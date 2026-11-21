@@ -546,23 +546,110 @@ public sealed class V02UiTests
         Assert.Equal(UiText.Money(100000), Assert.Single(f.Vm.UnpaidOrders).Due);
     }
 
+    [Fact]
+    public async Task CommitImportAndClearAllDataRefreshCatalogWithoutManualSearch()
+    {
+        var f = new UiFixture(startWithEmptyCatalog: true);
+        await f.Vm.InitializeAsync();
+        Assert.Empty(f.Vm.Catalog);
+        Assert.Equal("共 0 筆 · 第 1 頁", f.Vm.CatalogStatus);
+
+        var directory = Path.Combine(Path.GetTempPath(), "expertcar-import-catalog-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(directory, "synthetic.dbf"), "synthetic");
+            f.Service.DrillOverride = new(new(36, 0, 0, 0, [], false),
+                [new("synthetic.dbf", "catalog", 36, 36, 0, 0, 0)]);
+            f.Service.CommitOverride = new(new(36, 0, 0, 0, "private-backup", 1), f.Service.DrillOverride.Sources);
+            f.Service.OnCommit = f.SeedDefaultCatalog;
+
+            f.Vm.ImportFolder = directory;
+            await f.Vm.DrillImportCommand.ExecuteAsync();
+            f.Vm.ImportConfirmed = true;
+            await f.Vm.CommitImportCommand.ExecuteAsync();
+
+            Assert.Equal(30, f.Vm.Catalog.Count);
+            Assert.Equal("共 36 筆 · 第 1 頁", f.Vm.CatalogStatus);
+
+            await f.Vm.ClearAllDataAsync(() => true, () => "清空");
+            Assert.Empty(f.Vm.Catalog);
+            Assert.Equal("共 0 筆 · 第 1 頁", f.Vm.CatalogStatus);
+
+            f.Vm.ImportFolder = directory;
+            await f.Vm.DrillImportCommand.ExecuteAsync();
+            f.Vm.ImportConfirmed = true;
+            await f.Vm.CommitImportCommand.ExecuteAsync();
+
+            Assert.Equal(30, f.Vm.Catalog.Count);
+            Assert.Equal("共 36 筆 · 第 1 頁", f.Vm.CatalogStatus);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public async Task NewOrderCommandUsesDisplayedVehicleWhenTabSwitchClearsSelectedVehicle()
+    {
+        var f = new UiFixture();
+        await f.Vm.InitializeAsync();
+        f.Vm.Query = "TEST1234";
+        await f.Vm.SearchCommand.ExecuteAsync();
+        Assert.NotNull(f.Vm.SelectedVehicle);
+
+        await f.Vm.OpenVehicleCommand.ExecuteAsync();
+        Assert.Equal(1, f.Vm.SelectedTab);
+
+        // 模擬 WPF TabControl 切換分頁卸載首頁 DataGrid 時將 SelectedVehicle 清為 null
+        f.Vm.SelectedVehicle = null;
+        f.Vm.SelectedTab = 5;
+        f.Vm.SelectedTab = 7;
+        f.Vm.SelectedTab = 1;
+
+        Assert.True(f.Vm.NewOrderCommand.CanExecute(null));
+        await f.Vm.NewOrderCommand.ExecuteAsync();
+        Assert.Equal(2, f.Vm.SelectedTab);
+        Assert.Equal(1, f.Vm.BuildDraft().VehicleId);
+        Assert.Contains("TEST-1234", f.Vm.DraftVehicle);
+
+        await f.Vm.SaveCommand.ExecuteAsync();
+        f.Vm.SelectedOtherVehicle = Assert.Single(f.Vm.OtherVehicles);
+        await f.Vm.OpenOtherVehicleCommand.ExecuteAsync();
+        f.Vm.SelectedVehicle = null;
+        f.Vm.SelectedTab = 5;
+        f.Vm.SelectedTab = 1;
+
+        Assert.True(f.Vm.NewOrderCommand.CanExecute(null));
+        await f.Vm.NewOrderCommand.ExecuteAsync();
+        Assert.Equal(2, f.Vm.BuildDraft().VehicleId);
+        Assert.Contains("OTHER-01", f.Vm.DraftVehicle);
+    }
+
     private sealed class UiFixture
     {
+        private readonly List<CatalogRow> defaultCatalog;
+        private readonly List<CatalogRow> activeCatalog;
         public PreferencesMemory Preferences { get; } = new();
-        public StorageStub Storage { get; } = new();
+        public StorageStub Storage { get; }
         public ServiceSpy Service { get; }
         public WorkspaceV02ViewModel Vm { get; }
-        public UiFixture()
+        public UiFixture(bool startWithEmptyCatalog = false)
         {
             var vehicle = new VehicleQuickResult(1, 1, "TEST-1234", "合成客戶", "Toyota", "合成車型", 2020, "109", "白", "12345678901234567");
             var other = vehicle with { VehicleId = 2, Plate = "OTHER-01" };
             var history = new VehicleHistory(vehicle, [new(1, "合成客戶", new(2020, 1, 1), null)],
                 [new(99, "OLD-SUMMARY", WorkOrderStatus.Settled, new(2020, 1, 1), 10000, 0)],
                 [new(1, 1, "合成客戶", null, vehicle.Plate, "Insurance", null, null, 82450)]);
-            var catalog = Enumerable.Range(1, 35).Select(i => new CatalogRow(i, "項目", $"LAB-{i:D3}", $"合成工資{i}", "次", 10000))
-                .Append(new(100, "零件", "PART-100", "合成零件", "個", 20000));
-            Service = new(new MemoryV02Service([history, new(other, [], [], [])], catalog));
+            defaultCatalog = Enumerable.Range(1, 35).Select(i => new CatalogRow(i, "項目", $"LAB-{i:D3}", $"合成工資{i}", "次", 10000))
+                .Append(new(100, "零件", "PART-100", "合成零件", "個", 20000)).ToList();
+            activeCatalog = startWithEmptyCatalog ? [] : [.. defaultCatalog];
+            Storage = new(() => activeCatalog.Clear());
+            Service = new(new MemoryV02Service([history, new(other, [], [], [])], activeCatalog), activeCatalog);
             Vm = new(Service, Storage, Preferences);
+        }
+        public void SeedDefaultCatalog()
+        {
+            activeCatalog.Clear();
+            activeCatalog.AddRange(defaultCatalog);
         }
         public async Task StartOrder()
         {
@@ -575,12 +662,13 @@ public sealed class V02UiTests
         public AppPreferences Load() => Value;
         public void Save(AppPreferences value) => Value = value;
     }
-    private sealed class ServiceSpy(IExpertCarV02Service inner) : IExpertCarV02Service
+    private sealed class ServiceSpy(IExpertCarV02Service inner, List<CatalogRow> dynamicCatalog) : IExpertCarV02Service
     {
         public List<CheckoutOptions> Options { get; } = [];
         public CheckoutQuote? QuoteOverride { get; set; }
         public ImportDrillResult? DrillOverride { get; set; }
         public ImportCommitResult? CommitOverride { get; set; }
+        public Action? OnCommit { get; set; }
         public bool BadSnapshotRevision { get; set; }
         public Task<IReadOnlyList<VehicleQuickResult>> QuickFindVehiclesAsync(string q, int limit = 20, CancellationToken ct = default) => inner.QuickFindVehiclesAsync(q, limit, ct);
         public Task<WorkOrderPage> SearchWorkOrdersAsync(int page = 1, int pageSize = 30, CancellationToken ct = default) => inner.SearchWorkOrdersAsync(page, pageSize, ct);
@@ -594,16 +682,27 @@ public sealed class V02UiTests
         public Task<long> SaveWorkOrderAsync(WorkOrderDraft draft, CancellationToken ct = default) => inner.SaveWorkOrderAsync(draft, ct);
         public Task DeleteDraftWorkOrderAsync(long id, CancellationToken ct = default) => inner.DeleteDraftWorkOrderAsync(id, ct);
         public Task TransitionWorkOrderAsync(long id, WorkOrderStatus from, WorkOrderStatus to, CancellationToken ct = default) => inner.TransitionWorkOrderAsync(id, from, to, ct);
-        public Task<CatalogPage> SearchCatalogAsync(CatalogSearchQuery query, CancellationToken ct = default) => inner.SearchCatalogAsync(query, ct);
+        public Task<CatalogPage> SearchCatalogAsync(CatalogSearchQuery query, CancellationToken ct = default)
+        {
+            var rows = dynamicCatalog.Where(item => (string.IsNullOrWhiteSpace(query.Kind) || query.Kind == "全部" || item.Kind == query.Kind) &&
+                (string.IsNullOrWhiteSpace(query.Text) || item.Code.Contains(query.Text, StringComparison.OrdinalIgnoreCase) ||
+                 item.Name.Contains(query.Text, StringComparison.OrdinalIgnoreCase))).ToArray();
+            return Task.FromResult(new CatalogPage(rows.Skip((query.Page - 1) * query.PageSize).Take(query.PageSize).ToArray(),
+                rows.Length, query.Page, query.PageSize));
+        }
         public async Task<CheckoutQuote> QuoteCheckoutAsync(long id, CheckoutOptions options, CancellationToken ct = default)
         { Options.Add(options); return QuoteOverride ?? await inner.QuoteCheckoutAsync(id, options, ct); }
         public Task<ReceivableResult> RecordPaymentAsync(long id, string method, long amount, CancellationToken ct = default) => inner.RecordPaymentAsync(id, method, amount, ct);
         public async Task<PrintSnapshot> CreatePrintSnapshotAsync(long id, string kind, CancellationToken ct = default)
         { var result = await inner.CreatePrintSnapshotAsync(id, kind, ct); return BadSnapshotRevision ? result with { Revision = result.Revision + 1 } : result; }
         public Task<ImportDrillResult> DrillImportAsync(IReadOnlyList<string> paths, CancellationToken ct = default) => DrillOverride is { } r ? Task.FromResult(r) : inner.DrillImportAsync(paths, ct);
-        public Task<ImportCommitResult> CommitDrilledImportAsync(CancellationToken ct = default) => CommitOverride is { } r ? Task.FromResult(r) : inner.CommitDrilledImportAsync(ct);
+        public Task<ImportCommitResult> CommitDrilledImportAsync(CancellationToken ct = default)
+        {
+            OnCommit?.Invoke();
+            return CommitOverride is { } r ? Task.FromResult(r) : inner.CommitDrilledImportAsync(ct);
+        }
     }
-    private sealed class StorageStub : IStorageService
+    private sealed class StorageStub(Action? onReset = null) : IStorageService
     {
         public ShopSettings Settings { get; private set; } = new("合成店家", "合成聯絡方式", 30, 0, 5);
         public Task InitializeAsync(CancellationToken ct = default) => Task.CompletedTask;
@@ -617,7 +716,13 @@ public sealed class V02UiTests
         public Task<long> SaveCustomerAsync(CustomerEditor value, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<long> SaveVehicleAsync(VehicleEditor value, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<long> SaveCatalogAsync(CatalogEditor value, CancellationToken ct = default) => throw new NotSupportedException();
-        public Task<string> CreateBackupAsync(CancellationToken ct = default) => throw new NotSupportedException();
+        public async Task<string> CreateBackupAsync(CancellationToken ct = default)
+        {
+            var path = Path.Combine(Path.GetTempPath(), "expertcar-stub-backup-" + Guid.NewGuid().ToString("N") + ".db");
+            await File.WriteAllTextAsync(path, "backup", ct);
+            return path;
+        }
+        public Task ResetToEmptyAsync(CancellationToken ct = default) { onReset?.Invoke(); return Task.CompletedTask; }
         public Task<ImportPreview> PreviewImportAsync(IReadOnlyList<string> value, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<ImportResult> CommitImportAsync(CancellationToken ct = default) => throw new NotSupportedException();
         public Task<long> CreateCustomerWithVehicleAsync(CustomerDraft customer, VehicleDraft vehicle, CancellationToken ct = default) => throw new NotSupportedException();

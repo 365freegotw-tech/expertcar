@@ -1,5 +1,5 @@
 <?xml version="1.0" ?>
-<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:ExpertCar.App.Presentation;assembly=ExpertCar.App.Presentation" xmlns:local="clr-namespace:ExpertCar.App" x:Class="ExpertCar.App.MainWindow" Title="汽修賺錢專家 · v0.2.0-rc2" Width="1440" Height="960" MinWidth="1180" MinHeight="760" FontFamily="Microsoft JhengHei" FontSize="18" Background="#F3F6FA" Foreground="#18334F" PreviewKeyDown="Window_PreviewKeyDown">
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="clr-namespace:ExpertCar.App.Presentation;assembly=ExpertCar.App.Presentation" xmlns:local="clr-namespace:ExpertCar.App" x:Class="ExpertCar.App.MainWindow" Title="汽修賺錢專家 · v0.2.0-rc3" Width="1440" Height="960" MinWidth="1180" MinHeight="760" FontFamily="Microsoft JhengHei" FontSize="18" Background="#F3F6FA" Foreground="#18334F" PreviewKeyDown="Window_PreviewKeyDown">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolVisibility"/>
         <local:CategoryConverter x:Key="CategoryText"/>

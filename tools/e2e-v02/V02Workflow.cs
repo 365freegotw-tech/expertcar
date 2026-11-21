@@ -36,13 +36,12 @@ public static class V02Workflow
         foreach (var count in vm.ImportSources) log($"source {count.SourceFile}/{count.SourceTable} scanned={count.Scanned} ready={count.Imported} skipped={count.Skipped} pending={count.Pending} failed={count.Failed}");
         await Execute(vm, vm.CommitImportCommand);
         Require(Directory.GetFiles(Path.Combine(target, "backups"), "*.db").Length > 0, "提交前備份");
+        Require(vm.CatalogKind == "全部" && vm.Catalog.Count > 0, "匯入完成後預設目錄自動載入");
         log(vm.ImportSummary.Split('；')[0] + "; backup_exists=yes");
         await Execute(vm, vm.DrillImportCommand);
         Require(vm.ImportSummary.Contains("成功 0") && !vm.CommitImportCommand.CanExecute(null), "重跑零新增");
         log("replay " + vm.ImportSummary);
 
-        await vm.SearchCatalogAsync(true);
-        Require(vm.CatalogKind == "全部" && vm.Catalog.Count > 0, "預設目錄有資料");
         var itemPage = await service.SearchCatalogAsync(new("", "項目", 1, 30));
         var item = itemPage.Items.First();
         vm.SelectedCatalogItem = item;
@@ -147,14 +146,18 @@ public static class V02Workflow
         await vm.ClearAllDataAsync(() => true, () => "清空");
         Require((await service.GetDashboardAsync()).CustomerCount == 0 &&
                 (await service.SearchCatalogAsync(new("", null))).TotalCount == 0, "清空後資料為零");
+        Require(vm.Catalog.Count == 0 && vm.CatalogStatus.Contains("共 0 筆"), "清空後目錄畫面為零");
         Require(!vm.Editable && vm.HistoryOrders.Count == 0 && vm.Lines.Count == 0, "清空後畫面草稿為空");
         vm.ImportFolder = Path.GetFullPath(source);
         await Execute(vm, vm.DrillImportCommand);
         Require(vm.ImportSummary.Contains($"成功 {initialReady}") && vm.ImportSummary.Contains("失敗 0"), "再次匯入演練筆數");
         vm.ImportConfirmed = true;
         await Execute(vm, vm.CommitImportCommand);
+        Require(vm.Catalog.Count > 0, "再次匯入後目錄畫面自動載入");
         vm.Query = "T00-0001"; await Execute(vm, vm.SearchCommand);
         vm.SelectedVehicle = vm.Vehicles.Single();
+        await Execute(vm, vm.OpenVehicleCommand);
+        vm.SelectedVehicle = null;
         await Execute(vm, vm.NewOrderCommand);
         vm.Number = "DEMO-RC2-REIMPORT";
         vm.Lines.Add(new() { Name = "重新匯入後工資", Category = WorkLineCategory.Labor, Price = 100 });

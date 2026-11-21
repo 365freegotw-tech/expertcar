@@ -1,4 +1,4 @@
-# 汽修賺錢專家 ExpertCar 0.2.0-rc2
+# 汽修賺錢專家 ExpertCar 0.2.0-rc3
 
 免費給汽修店使用：開估價單、轉維修工單、結帳收款，再用 A4 紙印給客人確認、簽名。可匯入 SuperCar（賺錢高手）客戶、車輛、項目／零件及歷史工單等資料，實際內容請先掃描並演練，再逐項核對。資料保留在店裡電腦，不用註冊雲端帳號。
 
@@ -10,11 +10,11 @@ SuperCar、賺錢高手為其權利人之商標，本軟體與其無任何關係
 
 ## 開發者說明
 
-> 以下步驟對應 0.2.0-rc2 候選版。Windows 實機仍須依 [驗收清單](docs/WINDOWS-ACCEPTANCE.md)確認。
+> 以下步驟對應 0.2.0-rc3 候選版。Windows 實機仍須依 [驗收清單](docs/WINDOWS-ACCEPTANCE.md)確認。
 
 ### 安裝與資料位置（開發與支援人員參考）
 
-Windows x64：將 `ExpertCar-0.2.0-rc2-win-x64.zip` 完整解壓到可寫入的資料夾，雙擊 `ExpertCar.exe`，不必另外安裝 .NET。請保留整個 `tools` 資料夾；匯入 MDB 時會呼叫內附工具。程式不要求系統管理員權限。
+Windows x64：將 `ExpertCar-0.2.0-rc3-win-x64.zip` 完整解壓到可寫入的資料夾，雙擊 `ExpertCar.exe`，不必另外安裝 .NET。請保留整個 `tools` 資料夾；匯入 MDB 時會呼叫內附工具。程式不要求系統管理員權限。
 
 資料庫位於 `%LOCALAPPDATA%\ExpertCar\expertcar.db`，備份位於同層 `backups`。更新程式前請關閉程式，另外複製整個 `%LOCALAPPDATA%\ExpertCar` 資料夾到安全位置。程式會在資料庫結構升級與匯入前建立備份；請自行安排額外異地備份。
 

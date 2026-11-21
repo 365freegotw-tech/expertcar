@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package a clean win-x64 single-file publish and the rc2 demo archive."""
+"""Package a clean win-x64 single-file publish and the rc3 demo archive."""
 import hashlib
 import re
 import shutil
@@ -12,7 +12,7 @@ repo = Path(__file__).resolve().parents[2]
 publish, demo_zip, output = (Path(value).resolve() for value in sys.argv[1:4])
 output.mkdir(parents=True, exist_ok=True)
 assert demo_zip.is_file() and zipfile.is_zipfile(demo_zip), "Provide the rc1 synthetic-shop-demo.zip"
-with tempfile.TemporaryDirectory(prefix="expertcar-rc2-") as temporary:
+with tempfile.TemporaryDirectory(prefix="expertcar-rc3-") as temporary:
     app = Path(temporary) / "ExpertCar"
     shutil.copytree(publish, app)
     assert (app / "ExpertCar.App.exe").is_file(), "PublishSingleFile output is missing"
@@ -26,7 +26,7 @@ with tempfile.TemporaryDirectory(prefix="expertcar-rc2-") as temporary:
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(repo / name, destination)
     shutil.copytree(repo / "licenses", app / "tools/legal/licenses")
-    notice = (app / "tools/legal/THIRD-PARTY-NOTICES.md").read_text().replace("0.2.0-rc1", "0.2.0-rc2")
+    notice = (app / "tools/legal/THIRD-PARTY-NOTICES.md").read_text().replace("0.2.0-rc1", "0.2.0-rc3")
     notice = re.sub(r"(?<!/)licenses/", "tools/legal/licenses/", notice)
     notice = notice.replace("docs/MDBTOOLS-WINDOWS.md", "tools/mdbtools/PROVENANCE.json 與 tools/mdbtools/build/")
     (app / "tools/legal/THIRD-PARTY-NOTICES.md").write_text(notice)
@@ -52,7 +52,7 @@ with tempfile.TemporaryDirectory(prefix="expertcar-rc2-") as temporary:
         assert not any(value in data or value.decode().encode("utf-16-le") in data for value in forbidden), path
         manifest.append(hashlib.sha256(data).hexdigest() + "  " + path.relative_to(app).as_posix())
     (app / "tools/legal/ARTIFACT-MANIFEST.sha256").write_text("\n".join(manifest) + "\n")
-    app_zip = output / "ExpertCar-0.2.0-rc2-win-x64.zip"
+    app_zip = output / "ExpertCar-0.2.0-rc3-win-x64.zip"
     with zipfile.ZipFile(app_zip, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         archive.writestr("ExpertCar/", "")
         for path in sorted(app.rglob("*")):
